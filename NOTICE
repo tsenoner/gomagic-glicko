@@ -1,0 +1,21 @@
+Third-party content in this repository
+======================================
+
+data/skilltree-2026-08-16.html
+-----------------------------
+A reduced snapshot of a public page on gomagic.org, captured 2026-08-16 and included so that the
+skill-tree inventory in docs/METHOD.md and README section 1 reproduces offline without a network
+fetch. It is **not** covered by the MIT licence in LICENSE and remains the property of its owners.
+
+Reduced before publication: <script>, <style>, <link>, <svg>, <img> and <noscript> nodes removed,
+HTML comments dropped, and the 74 per-node data-nonce values replaced with REDACTED (expired
+anonymous-session CSRF tokens that src/parse_tree.py never reads). Page structure, every data-*
+attribute the parser uses, and all page text are verbatim; `./src/parse_tree.py --html` on the
+reduced file produces output identical to the unreduced capture.
+
+Constants reimplemented from Lichess
+------------------------------------
+The five production clamps in src/glicko2.py, the puzzle-as-competitor framing, and the
+theme-based damping described in docs/METHOD.md section 4 are Lichess's design decisions, read
+from `lila` and `scalachess` (both AGPL-3.0) and cited there with pinned commit SHAs. This repo
+reimplements the *numbers and the approach* in Python; no Lichess code was copied.

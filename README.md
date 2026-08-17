@@ -275,6 +275,7 @@ validation, a build of `docs/METHOD.md`, and asserts the section-1 inventory sti
 
 ```
 docs/METHOD.md          the full method write-up: what, why and how, from Elo onwards
+NOTICE                  third-party content: the page snapshot, and what is Lichess's
 src/parse_tree.py       public skill-tree parser
 src/glicko2.py          Glicko-2 + Lichess production rules
 src/recovery.py         the planted world, the attempt log, online fitting, scoring, the plot
