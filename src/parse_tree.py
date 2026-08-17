@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = ["selectolax"]
 # ///
 """
@@ -51,6 +51,12 @@ def fetch(url: str = URL) -> str:
     return out.stdout
 
 
+def _num(attrs, key: str, default: int = 0) -> int:
+    """Read a numeric data-* attribute, defaulting when it is absent or not a plain integer."""
+    v = attrs.get(key) or ""
+    return int(v) if v.strip().isdigit() else default
+
+
 def parse(html: str) -> dict:
     tree = HTMLParser(html)
     nodes = []
@@ -74,10 +80,6 @@ def parse(html: str) -> dict:
     for el in tree.css("div.gomagic_skill"):
         a = el.attributes
 
-        def num(key: str, default: int = 0) -> int:
-            v = a.get(key) or ""
-            return int(v) if v.strip().isdigit() else default
-
         # The visible label lives in a descendant; take the first non-empty text.
         label = ""
         for child in el.iter(include_text=False):
@@ -87,7 +89,7 @@ def parse(html: str) -> dict:
                 break
 
         skills = [s for s in (a.get("data-basic_skills") or "").split(",") if s]
-        levels, quizzes = num("data-level_qty"), num("data-quiz_qty")
+        levels, quizzes = _num(a, "data-level_qty"), _num(a, "data-quiz_qty")
 
         nodes.append({
             "skill_id": a.get("data-skill_id"),

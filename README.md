@@ -252,8 +252,24 @@ weighted 0.2, a hinted loss 0.7) where `play()` takes one symmetric `weight`.
 ./src/recovery.py --puzzles 300 --reps 2 --linking 0.25 0.5 1.0   # the section-5 table
 ```
 
-Every table above is one of these commands at its printed defaults, seed included. `uv` handles
-dependencies through inline script metadata, so there is no environment to set up.
+Every table above is one of these commands at its printed defaults, seed included. Each script
+carries its own [PEP 723](https://peps.python.org/pep-0723/) inline dependency header, so `uv`
+resolves what it needs on the spot — **there is no environment to set up and no checkout required
+to run one file.**
+
+For the dev loop there is also a project definition (Python **3.12+**):
+
+```sh
+uv sync                # dev environment, from uv.lock
+uv run ruff check .    # lint
+./tests/test_glicko2.py
+```
+
+Ruff lints but does not format. The scripts are written to be read — the module docstrings are the
+`--help` text, the Adam update is aligned one step per line, the table prints line their columns up
+in the source — and the formatter reflows all of it. CI runs `ruff check`, the estimator
+validation, a build of `docs/METHOD.md`, and asserts the section-1 inventory still parses to
+74 / 35 / 23 / 4,790 so the published numbers cannot drift silently.
 
 ## Layout
 
@@ -264,7 +280,7 @@ src/glicko2.py          Glicko-2 + Lichess production rules
 src/recovery.py         the planted world, the attempt log, online fitting, scoring, the plot
 src/batch_fit.py        joint Rasch MAP refit of the same log, to test the online artefact
 tests/test_glicko2.py   Glickman's worked example and the clamps
-data/                   a dated snapshot of the public page, so section 1 reproduces offline
+data/                   a reduced snapshot of the public page, so section 1 reproduces offline
 ```
 
 `recovery.py` owns the shared pieces — `make_log` builds the attempt log, `replay` fits it online,

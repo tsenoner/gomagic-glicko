@@ -123,6 +123,7 @@ repeatedly:
 | claim | status |
 |---|---|
 | the skill-tree inventory below (74 nodes, 35 rows, 4,790 slots, tiers, tags)[^gomagic-tree] | **backed** by `data/skilltree-2026-08-16.html`, reproduces exactly |
+| that snapshot's fidelity | **reduced, not edited.** Scripts, styles, SVG, images and comments were stripped and the per-node `data-nonce` values redacted before publication; page structure, every `data-*` the parser reads, and all page text are verbatim, and the parse output is byte-identical to the unreduced capture |
 | "10,160 puzzles" | **backed** — the phrase appears in the snapshot |
 | "5 puzzles per quiz" | **backed** — *"a quiz — a short series of 5 puzzles"* |
 | the static 11-level difficulty table | **not backed.** The snapshot contains the word "difficulty" zero times |

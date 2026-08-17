@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # ///
 """The validation the README claims: Glickman's worked example, plus the production clamps.
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from glicko2 import (  # noqa: E402
+from glicko2 import (
     MAX_DEVIATION,
     MAX_RATING_DELTA,
     MAX_VOLATILITY,
@@ -121,7 +121,7 @@ def test_play_is_mutually_calibrating() -> None:
           (p_after.rating - player.rating) + (z_after.rating - puzzle.rating), 0.0, 1e-9)
 
     print("\nHint damping:")
-    half_p, half_z = play(player, puzzle, solved=True, weight=0.5)
+    half_p, _ = play(player, puzzle, solved=True, weight=0.5)
     check("weight=0.5 moves the player half as far",
           half_p.rating - player.rating, (p_after.rating - player.rating) * 0.5, 1e-9)
     none_p, _ = play(player, puzzle, solved=True, weight=0.0)

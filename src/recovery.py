@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = ["matplotlib"]
 # ///
 """
@@ -58,7 +58,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from glicko2 import DEFAULT_RATING, Rating, play  # noqa: E402
+from glicko2 import DEFAULT_RATING, Rating, play
 
 # Rough mapping used only to make the simulated spread realistic: Go ranks are roughly linear in
 # rating over the kyu range, ~100 points per rank. 20k ≈ 700, 1d ≈ 2100 on this scale.
@@ -165,7 +165,7 @@ def spearman(a: list[float], b: list[float]) -> float:
     ra, rb = ranks(a), ranks(b)
     n = len(a)
     ma, mb = sum(ra) / n, sum(rb) / n
-    num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
+    num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb, strict=True))
     den = math.sqrt(sum((x - ma) ** 2 for x in ra) * sum((y - mb) ** 2 for y in rb))
     return num / den if den else float("nan")
 
@@ -177,18 +177,18 @@ def score_values(fitted: list[float], truth: list[float]) -> Score:
         return Score(float("nan"), float("nan"), float("nan"), 0.0, float("nan"))
 
     # Scale-preserving: take out the mean offset only.
-    offset = sum(f - t for f, t in zip(fitted, truth)) / n
-    errs = [abs((f - offset) - t) for f, t in zip(fitted, truth)]
+    offset = sum(f - t for f, t in zip(fitted, truth, strict=True)) / n
+    errs = [abs((f - offset) - t) for f, t in zip(fitted, truth, strict=True)]
     rmse_offset = math.sqrt(sum(e * e for e in errs) / n)
 
     # Scale-free: least-squares affine map of `fitted` onto `truth`, in closed form.
     mf = sum(fitted) / n
     mt = sum(truth) / n
     var_f = sum((f - mf) ** 2 for f in fitted)
-    cov = sum((f - mf) * (t - mt) for f, t in zip(fitted, truth))
+    cov = sum((f - mf) * (t - mt) for f, t in zip(fitted, truth, strict=True))
     slope = cov / var_f if var_f else float("nan")
     intercept = mt - slope * mf
-    resid = [(slope * f + intercept) - t for f, t in zip(fitted, truth)]
+    resid = [(slope * f + intercept) - t for f, t in zip(fitted, truth, strict=True)]
     rmse_affine = math.sqrt(sum(r * r for r in resid) / n)
 
     return Score(rmse_offset, rmse_affine, slope,
@@ -197,7 +197,7 @@ def score_values(fitted: list[float], truth: list[float]) -> Score:
 
 def score(fitted: list[Rating], truth: list[float]) -> Score:
     """Score fitted `Rating`s, skipping any competitor that never played."""
-    seen = [(f.rating, t) for f, t in zip(fitted, truth) if f.games > 0]
+    seen = [(f.rating, t) for f, t in zip(fitted, truth, strict=True) if f.games > 0]
     return score_values([f for f, _ in seen], [t for _, t in seen])
 
 

@@ -1,0 +1,68 @@
+[project]
+name = "gomagic-glicko"
+version = "0.1.0"
+description = "How much data does it take to measure a Go puzzle's difficulty, instead of guessing it?"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Tobias Senoner" }]
+keywords = ["glicko", "glicko-2", "elo", "rasch", "irt", "go", "baduk", "psychometrics"]
+
+# The union of what the scripts import. Each script ALSO carries its own PEP 723 inline header so
+# `./src/recovery.py` runs standalone with no project checkout and no environment — that property
+# is advertised in the README, so the duplication is deliberate. `uv sync` is for the dev loop and
+# for CI; the inline headers are for running one file anywhere.
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "selectolax>=0.3.21",
+    "markdown>=3.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/tsenoner/gomagic-glicko"
+Documentation = "https://github.com/tsenoner/gomagic-glicko/blob/main/docs/METHOD.md"
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+# Not an installable package: this is a set of runnable scripts plus a document.
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100          # matches the prose wrap the whole repo is written to
+target-version = "py312"
+extend-exclude = ["data"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting
+    "UP",        # pyupgrade — keep the 3.12 floor honest
+    "B",         # bugbear
+    "SIM",       # simplify
+    "C4",        # comprehensions
+    "RUF",
+]
+ignore = [
+    # The scripts are read as much as run: aligned statements and a deliberate 100-col prose wrap
+    # matter more here than one-statement-per-line orthodoxy.
+    "E501",    # long lines are caught by the formatter, and tables in docstrings exceed it
+    "E702",    # `m *= b1; m += ...` keeps the Adam update readable as one update step
+    "E731",    # a named lambda is the clearest form for the tiny row formatters
+    "RUF001",  # the prose uses en dashes and typographic quotes on purpose
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The docstring in every script IS the --help text, so it is prose, not documentation boilerplate.
+"src/*.py" = ["E402"]      # sys.path.insert must precede the local imports it enables
+"docs/build.py" = ["E501"]
+"tests/*.py" = ["E402"]
+
+# The formatter is deliberately NOT used. These scripts are written to be read: the module
+# docstrings are the --help text, the Adam update is aligned as one step per line, and the table
+# prints line up their columns in the source. `ruff format` reflows all of that. Lint, don't format.

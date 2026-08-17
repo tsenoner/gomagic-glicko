@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Validate the estimator against Glickman's worked example
+        run: ./tests/test_glicko2.py
+
+      - name: Parse the committed snapshot and assert the published inventory
+        run: |
+          ./src/parse_tree.py --html data/skilltree-2026-08-16.html | tee /tmp/tree.txt
+          # docs/METHOD.md section 1 and README section 1 quote these. If the parser or the
+          # snapshot drifts, the published numbers become wrong silently — so pin them here.
+          grep -q 'Skill nodes            74'  /tmp/tree.txt
+          grep -q 'Prerequisite rows      35'  /tmp/tree.txt
+          grep -q 'Hardmode nodes         23'  /tmp/tree.txt
+          grep -q '4,790'                      /tmp/tree.txt
+
+      - name: Build the reading view of docs/METHOD.md
+        # Also runs check_js(): node --check over the inlined script, plus the guard against
+        # non-ASCII inside a character class. A parse-time error there silently disables the
+        # whole page, so it must fail the build rather than ship.
+        run: ./docs/build.py --out /tmp/method.html
+
+      - name: Smoke-run the experiments
+        run: |
+          ./src/recovery.py --quick --out /tmp/recovery.png
+          ./src/batch_fit.py --quick --puzzles 120 --players 1200
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: method-html
+          path: /tmp/method.html
+          if-no-files-found: error

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = ["markdown>=3.4"]
 # ///
 """Render docs/METHOD.md into a single self-contained HTML page.

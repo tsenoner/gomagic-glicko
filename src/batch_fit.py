@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = ["numpy"]
 # ///
 """
@@ -50,8 +50,8 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
-from recovery import TRUE_SD, make_log, make_world, replay, score_values  # noqa: E402
-from glicko2 import DEFAULT_RATING, SCALE  # noqa: E402
+from glicko2 import DEFAULT_RATING, SCALE
+from recovery import TRUE_SD, make_log, make_world, replay, score_values
 
 # A Gaussian prior of sd `TRUE_SD` (the sd both planted populations are drawn with), expressed in
 # the model's natural-log units, is an L2 weight of 1/sd^2. Deriving it beats picking it: tuning
@@ -103,6 +103,11 @@ def fit(log, n_players: int, n_puzzles: int, iters: int = DEFAULT_ITERS,
     return theta * SCALE + DEFAULT_RATING, beta * SCALE + DEFAULT_RATING
 
 
+def mean_of(scores: list, field: str) -> float:
+    """Mean of one Score field across reps."""
+    return sum(getattr(x, field) for x in scores) / len(scores)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -152,10 +157,9 @@ def main() -> None:
 
             for est in ("online", "batch"):
                 s = rows[est]
-                m = lambda key: sum(getattr(x, key) for x in s) / len(s)  # noqa: E731
                 print(f"  {n:>8}  {'banded' if banded else 'random':<7}  {est:<9}  "
-                      f"{m('rmse_offset'):>9.1f}  {m('rmse_affine'):>9.1f}  "
-                      f"{m('slope'):>5.2f}  {m('rho'):>5.2f}")
+                      f"{mean_of(s, 'rmse_offset'):>9.1f}  {mean_of(s, 'rmse_affine'):>9.1f}  "
+                      f"{mean_of(s, 'slope'):>5.2f}  {mean_of(s, 'rho'):>5.2f}")
         print()
 
 
