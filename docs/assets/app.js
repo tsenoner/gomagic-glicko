@@ -307,6 +307,10 @@ if (backBtn) backBtn.addEventListener('click', function(){
 if (fwdBtn) fwdBtn.addEventListener('click', function(){
   if (depth < frames.length) history.forward();
 });
+/* An explicit dismiss, because Escape alone is not discoverable. Cleared on the next jump, so
+   dismissing hides this bar rather than turning the feature off. */
+var closeBtn = document.getElementById('jump-close');
+if (closeBtn) closeBtn.addEventListener('click', function(){ dismissed = true; renderJump(); });
 addEventListener('keydown', function(e){
   /* Only dismiss the pill if Escape was not already spent closing the popover, and not while
      focus is inside the rail's filter (where Escape clears the query). */

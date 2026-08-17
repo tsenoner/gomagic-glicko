@@ -124,17 +124,75 @@ def build_nav(toc_tokens: list) -> str:
     return "\n".join(out)
 
 
-def mark_numeric_cells(body: str) -> str:
-    """Tag purely numeric table cells so they take the mono, right-aligned, tabular treatment."""
+NUMERIC = re.compile(r"[+\u2212-]?[\d.,]+(?:\s*[\u2013\u2014-]\s*[\d.,]+)?\s*(?:[\u00d7x%]|px)?\Z")
 
-    def one(m: re.Match) -> str:
-        attrs, inner = m.group(1), m.group(2)
-        plain = re.sub(r"<[^>]+>", "", inner).strip()
-        numeric = plain and re.fullmatch(r"[−–—\-+]?[\d.,]+\s*(×|x|%)?", plain)
-        cls = ' class="num"' if numeric else ""
-        return f"<td{cls}{attrs}>{inner}</td>"
 
-    return re.sub(r"<td([^>]*)>(.*?)</td>", one, body, flags=re.S)
+def _plain(cell_html: str) -> str:
+    return re.sub(r"<[^>]+>", "", cell_html).strip()
+
+
+def align_table_columns(body: str) -> str:
+    """Right-align numeric columns, and keep short label cells on one line.
+
+    Alignment is decided per COLUMN, never per cell. Deciding it per cell meant one odd value
+    broke the column it lived in: a "Glickman's step" column reading 1-2, 3, 4 ... 8 rendered its
+    first cell left-aligned in the serif (the en dash is not a digit) and the rest right-aligned in
+    the mono, so the column visibly staggered. A column is numeric only if *every* populated cell
+    in it is, and then the header goes with it.
+
+    Short first-column cells also get `nowrap`, because a table whose later columns hold long prose
+    squeezes the label column until words break at their hyphens -- "Glicko-2" rendering as
+    "Glicko-" over "2".
+    """
+
+    def one_table(tm: re.Match) -> str:
+        table = tm.group(0)
+        rows = re.findall(r"<tr>(.*?)</tr>", table, re.S)
+        body_cols: list[list[str]] = []
+        for row in rows:
+            cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+            for i, c in enumerate(cells):
+                while len(body_cols) <= i:
+                    body_cols.append([])
+                body_cols[i].append(_plain(c))
+
+        numeric_col = [
+            bool(col) and all(NUMERIC.fullmatch(v) for v in col if v) and any(col)
+            for col in body_cols
+        ]
+        # A label column is the first one when it is not numeric and every entry is short enough
+        # that nowrap cannot push the table wide.
+        label_col0 = (
+            bool(body_cols)
+            and not numeric_col[0]
+            and all(len(v) <= 16 for v in body_cols[0])
+        )
+
+        def retag(row_html: str, tag: str) -> str:
+            idx = [0]
+
+            def cell(m: re.Match) -> str:
+                i = idx[0]
+                idx[0] += 1
+                attrs, inner = m.group(1), m.group(2)
+                classes = []
+                if i < len(numeric_col) and numeric_col[i]:
+                    classes.append("num")
+                elif i == 0 and label_col0:
+                    classes.append("lbl")
+                cls = f' class="{" ".join(classes)}"' if classes else ""
+                return f"<{tag}{cls}{attrs}>{inner}</{tag}>"
+
+            return re.sub(rf"<{tag}([^>]*)>(.*?)</{tag}>", cell, row_html, flags=re.S)
+
+        return re.sub(
+            r"<tr>(.*?)</tr>",
+            lambda rm: "<tr>" + retag(retag(rm.group(1), "td"), "th") + "</tr>",
+            table,
+            flags=re.S,
+        )
+
+    return re.sub(r"<table>.*?</table>", one_table, body, flags=re.S)
 
 
 REF_DIV = re.compile(r'\n?<div class="footnote">\s*<hr\s*/?>\s*(<ol>.*?</ol>)\s*</div>', re.S)
@@ -249,7 +307,7 @@ def render(md_text: str, css: str, js: str) -> str:
     toc_tokens = md.toc_tokens  # capture before any reset() clears it
     lede = markdown.Markdown(extensions=["sane_lists"]).convert(lede_md)
 
-    body = mark_numeric_cells(body)
+    body = align_table_columns(body)
     body = transform_refs(body)
     body = body.replace("<table>", '<div class="tw"><table>').replace("</table>", "</table></div>")
     nav = build_nav(toc_tokens)
@@ -296,6 +354,10 @@ command at seed 20260816. Public data and simulation only.</p></div>
   <span class="sep" aria-hidden="true"></span>
   <button id="jump-fwd" type="button" aria-label="Forward again" hidden>
     <span class="arrow" aria-hidden="true">&rarr;</span>
+  </button>
+  <span class="sep" aria-hidden="true"></span>
+  <button class="close" id="jump-close" type="button" aria-label="Dismiss the jump history bar">
+    <span aria-hidden="true">&times;</span>
   </button>
 </div>
 <p id="jump-status" role="status" aria-live="polite" class="sr-only"></p>
