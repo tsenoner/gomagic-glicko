@@ -1,5 +1,10 @@
 # gomagic-glicko
 
+[![CI](https://github.com/tsenoner/gomagic-glicko/actions/workflows/ci.yml/badge.svg)](https://github.com/tsenoner/gomagic-glicko/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **How much data does it take to measure a Go puzzle's difficulty, instead of guessing it?**
 
 Go Magic assigns puzzle difficulty by hand: a static 11-level table, one person's judgement per
