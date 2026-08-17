@@ -8,6 +8,7 @@ Is the gating penalty real, or an artefact of using an *online* estimator?
 
     ./batch_fit.py                 # the comparison
     ./batch_fit.py --quick
+    ./batch_fit.py --l2 0.03       # weaken the prior; see the note on shrinkage below
 
 Why this exists
 ---------------
@@ -16,14 +17,27 @@ system works. Sequential estimators are known to do worse than a joint fit on sp
 data: early updates are made against opponents whose own ratings are still garbage, and that
 error never fully washes out.
 
-So a sceptical reader is right to ask whether "skill-tree gating plateaus around 300 RMSE" is a
-fact about *gating* or a fact about *online Glicko*. This settles it by fitting the same
-simulated attempt logs jointly, by maximum likelihood, and comparing.
+So a sceptical reader is right to ask whether "skill-tree gating costs you 300 RMSE" is a fact
+about *gating* or a fact about *online Glicko*. This settles it by fitting the very same simulated
+attempt log jointly, by maximum a posteriori, and comparing.
+
+Both estimators are handed one list of attempts produced by `recovery.make_log` — not two draws
+from the same process — so the difference between the columns is the estimator and nothing else.
 
 The model is the one the simulation generates from, so this is the best case a batch fit could
 possibly achieve — no model misspecification, only the information actually present in the data.
 If a correctly-specified batch fit given perfect model knowledge still cannot recover difficulty
 under gating, the limitation is in the data, not the estimator.
+
+The prior is not a free lunch
+-----------------------------
+This is MAP, not MLE, and it has to be: a player with one attempt is perfectly separated, so the
+unregularised likelihood is maximised at infinity. But the strength of that prior sets how much
+the fitted scale is compressed, and compression shows up as error under a scale-preserving metric
+while being invisible to a scale-free one. So `--l2` defaults to the value implied by the
+population the simulation actually draws from, rather than a hand-picked number, and both metrics
+are reported side by side with the fitted slope so the compression is visible rather than assumed
+away. `--l2` is there to let you check the sensitivity yourself.
 """
 
 from __future__ import annotations
@@ -36,41 +50,24 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
-from recovery import make_world, simulate, score, solves  # noqa: E402
-from glicko2 import DEFAULT_RATING, Rating  # noqa: E402
+from recovery import TRUE_SD, make_log, make_world, replay, score_values  # noqa: E402
+from glicko2 import DEFAULT_RATING, SCALE  # noqa: E402
 
-SCALE = 400.0 / np.log(10.0)   # Elo 400-point scale, in natural-log units
+# A Gaussian prior of sd `TRUE_SD` (the sd both planted populations are drawn with), expressed in
+# the model's natural-log units, is an L2 weight of 1/sd^2. Deriving it beats picking it: tuning
+# the prior against the planted truth would be choosing a knob by peeking at the answer.
+DEFAULT_L2 = (SCALE / TRUE_SD) ** 2
 
-
-def build_log(sim, attempts_per_puzzle: int, banded: bool, rng: random.Random,
-              band: float = 300.0, linking: float = 0.0):
-    """Same attempt-generating process as recovery.simulate, but returns the raw log."""
-    rows = []
-    for zi, zdiff in enumerate(sim.puzzles):
-        use_band = banded and rng.random() >= linking
-        if use_band:
-            pool = [i for i, s in enumerate(sim.players) if abs(s - zdiff) <= band]
-            if len(pool) < attempts_per_puzzle:
-                pool = sorted(range(len(sim.players)),
-                              key=lambda i: abs(sim.players[i] - zdiff))[:attempts_per_puzzle]
-        else:
-            pool = range(len(sim.players))
-        for pi in rng.sample(list(pool), min(attempts_per_puzzle, len(pool))):
-            rows.append((pi, zi, 1.0 if solves(sim.players[pi], sim.puzzles[zi], rng) else 0.0))
-    return rows
+# The penalised objective is flat well before this (measured: no change in the fitted values
+# between 2,000 and 12,000 iterations at any sweep point), so the extra iterations were waste.
+DEFAULT_ITERS = 2000
 
 
-def fit(log, n_players: int, n_puzzles: int, iters: int = 4000, lr: float = 0.5,
-        l2: float = 0.30) -> tuple[np.ndarray, np.ndarray]:
+def fit(log, n_players: int, n_puzzles: int, iters: int = DEFAULT_ITERS,
+        lr: float = 0.5, l2: float = DEFAULT_L2) -> tuple[np.ndarray, np.ndarray]:
     """Joint MAP fit for player skills and puzzle difficulties (a Rasch model, fitted by Adam).
 
     Returns (skills, difficulties) on the Elo scale.
-
-    `l2` is a Gaussian prior, not a nuisance knob. Without it this is unusable here: a player
-    with one attempt is perfectly separated (all-win or all-loss), the likelihood is maximised at
-    infinity, and the fit diverges. At 10 attempts per puzzle most simulated players have one or
-    two attempts, so that is the common case, not an edge case. Shrinkage is the standard
-    treatment and it is why this is MAP rather than MLE.
     """
     if not log:
         return np.zeros(n_players), np.zeros(n_puzzles)
@@ -98,70 +95,68 @@ def fit(log, n_players: int, n_puzzles: int, iters: int = 4000, lr: float = 0.5,
             v *= b2; v += (1 - b2) * g * g
             par -= lr * (m / (1 - b1 ** t)) / (np.sqrt(v / (1 - b2 ** t)) + eps)
 
-        # The model is only identified up to a shift; pin the mean each step.
-        theta -= theta.mean()
+        # z = theta - beta has exactly one degeneracy, a common shift, so exactly one constraint
+        # is free. Pinning both means would impose two and destroy the identifiable difference
+        # between mean skill and mean difficulty; the Rasch convention is to pin the items.
         beta -= beta.mean()
 
     return theta * SCALE + DEFAULT_RATING, beta * SCALE + DEFAULT_RATING
 
 
-def affine_score(fitted: list[float], truth: list[float]) -> tuple[float, float]:
-    """RMSE after least-squares affine alignment, plus Spearman rho.
-
-    Neither estimator fixes an origin, and a shrunk MAP fit also compresses the scale. Since a
-    difficulty label can be rescaled after the fact, the fair question is how much *information*
-    each estimator extracted, which is what remains once an affine map is allowed. Applied
-    identically to both so the comparison is like for like.
-    """
-    from recovery import spearman
-    f = np.asarray(fitted, dtype=float); t = np.asarray(truth, dtype=float)
-    A = np.vstack([f, np.ones_like(f)]).T
-    slope, intercept = np.linalg.lstsq(A, t, rcond=None)[0]
-    resid = (slope * f + intercept) - t
-    return float(np.sqrt((resid ** 2).mean())), spearman(list(f), list(t))
-
-
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--puzzles", type=int, default=300)
     ap.add_argument("--players", type=int, default=3000)
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--band", type=float, default=300.0)
+    ap.add_argument("--l2", type=float, default=DEFAULT_L2,
+                    help=f"Gaussian prior weight for the joint fit (default {DEFAULT_L2:.4f}, "
+                         "derived from the planted population sd)")
+    ap.add_argument("--iters", type=int, default=DEFAULT_ITERS)
     ap.add_argument("--seed", type=int, default=20260816)
     args = ap.parse_args()
 
     sweep = [10, 40] if args.quick else [10, 40, 160]
     reps = 1 if args.quick else args.reps
 
-    print(f"\n  {args.puzzles} puzzles, {args.players} players — online Glicko-2 vs joint MLE")
-    print(f"  Both see the identical attempt log. RMSE after affine alignment, applied to both.\n")
-    print(f"  {'attempts':>8}  {'regime':<7}  {'online RMSE':>11}  {'batch RMSE':>10}  "
-          f"{'online rho':>10}  {'batch rho':>9}")
-    print(f"  {'-'*8}  {'-'*7}  {'-'*11}  {'-'*10}  {'-'*10}  {'-'*9}")
+    print(f"\n  {args.puzzles} puzzles, {args.players} players — online Glicko-2 vs joint MAP fit")
+    print(f"  Both estimators are scored on the same attempt log. prior l2={args.l2:.4f}, "
+          f"{args.iters} iters.")
+    print("  RMSE(off) keeps the fitted scale; RMSE(aff) removes it. slope 1.0 == scales agree.\n")
+    print(f"  {'attempts':>8}  {'regime':<7}  {'estimator':<9}  {'RMSE(off)':>9}  "
+          f"{'RMSE(aff)':>9}  {'slope':>5}  {'rho':>5}")
+    print(f"  {'-'*8}  {'-'*7}  {'-'*9}  {'-'*9}  {'-'*9}  {'-'*5}  {'-'*5}")
 
     for n in sweep:
         for banded in (False, True):
-            regime = "banded" if banded else "random"
-            on_r, ba_r, on_h, ba_h = [], [], [], []
+            rows = {"online": [], "batch": []}
             for r in range(reps):
-                seed = args.seed + r * 977 + n
-                # Online path
-                rng = random.Random(seed)
-                sim = make_world(args.puzzles, args.players, rng)
-                pz, _ = simulate(sim, n, banded, rng)
-                rmse_o, rho_o = affine_score([r.rating for r in pz], sim.puzzles)
-                # Batch path, same world and same generating process
-                rng2 = random.Random(seed)
-                sim2 = make_world(args.puzzles, args.players, rng2)
-                log = build_log(sim2, n, banded, rng2)
-                _, beta = fit(log, args.players, args.puzzles)
-                rmse_b, rho_b = affine_score(list(beta), sim2.puzzles)
-                on_r.append(rmse_o); ba_r.append(rmse_b); on_h.append(rho_o); ba_h.append(rho_b)
+                world_rng = random.Random(args.seed + r * 977)
+                sim = make_world(args.puzzles, args.players, world_rng)
 
-            f = lambda xs: sum(xs) / len(xs)
-            print(f"  {n:>8}  {regime:<7}  {f(on_r):>11.1f}  {f(ba_r):>10.1f}  "
-                  f"{f(on_h):>10.2f}  {f(ba_h):>9.2f}")
-    print()
+                # One log, both estimators. This is the whole point of the file.
+                log_rng = random.Random(args.seed + r * 7919 + n)
+                log = make_log(sim, n, banded, log_rng, band=args.band)
+
+                pz, _ = replay(log, args.players, args.puzzles)
+                _, beta = fit(log, args.players, args.puzzles,
+                              iters=args.iters, l2=args.l2)
+
+                # Score both on the same subset: the puzzles the log actually touches.
+                seen = sorted({zi for _, zi, _ in log})
+                truth = [sim.puzzles[i] for i in seen]
+                rows["online"].append(score_values([pz[i].rating for i in seen], truth))
+                rows["batch"].append(score_values([float(beta[i]) for i in seen], truth))
+
+            for est in ("online", "batch"):
+                s = rows[est]
+                m = lambda key: sum(getattr(x, key) for x in s) / len(s)  # noqa: E731
+                print(f"  {n:>8}  {'banded' if banded else 'random':<7}  {est:<9}  "
+                      f"{m('rmse_offset'):>9.1f}  {m('rmse_affine'):>9.1f}  "
+                      f"{m('slope'):>5.2f}  {m('rho'):>5.2f}")
+        print()
 
 
 if __name__ == "__main__":

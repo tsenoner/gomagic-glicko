@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from collections import Counter
@@ -115,7 +114,7 @@ def parse(html: str) -> dict:
 
 
 def summarise(d: dict) -> None:
-    nodes, rows, tiers = d["nodes"], d["rows"], Counter(n["tier"] for n in d["nodes"])
+    nodes, rows, tiers = d["nodes"], d["rows"], d["tiers"]
     total_slots = sum(n["attempt_slots"] for n in nodes)
 
     print()

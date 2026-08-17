@@ -18,9 +18,12 @@ turn those judgements into measurements.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-SCALE = 173.7178          # Glicko-2 internal scale factor
+# Glicko-2's internal scale factor. Glickman writes it as the constant 173.7178; it is exactly
+# the Elo 400-point scale in natural-log units, which is why `batch_fit` imports this rather
+# than recomputing 400/ln(10) as if it were a different number.
+SCALE = 400.0 / math.log(10.0)
 DEFAULT_RATING = 1500.0
 DEFAULT_RD = 350.0
 DEFAULT_VOL = 0.09
@@ -41,7 +44,6 @@ class Rating:
     rd: float = DEFAULT_RD
     vol: float = DEFAULT_VOL
     games: int = 0
-    history: list[float] = field(default_factory=list)
 
     # Glicko-2 works on a transformed scale; convert at the boundary only.
     @property
@@ -58,9 +60,23 @@ def _g(phi: float) -> float:
     return 1.0 / math.sqrt(1.0 + 3.0 * phi * phi / (math.pi * math.pi))
 
 
-def _expected(mu: float, mu_j: float, phi_j: float) -> float:
-    """Probability that the competitor at `mu` beats the one at `mu_j`."""
-    return 1.0 / (1.0 + math.exp(-_g(phi_j) * (mu - mu_j)))
+def _expected(mu: float, mu_j: float, g_j: float) -> float:
+    """Probability that the competitor at `mu` beats the one at `mu_j`, whose weight is `g_j`."""
+    return 1.0 / (1.0 + math.exp(-g_j * (mu - mu_j)))
+
+
+def _clamped(rating: float, rd: float, vol: float, games: int, prev_rating: float) -> Rating:
+    """The single exit from `update`, so the Lichess clamps apply to every path identically.
+
+    They used to be open-coded per branch, which meant each of update()'s exits enforced a
+    different subset of them.
+    """
+    return Rating(
+        max(prev_rating - MAX_RATING_DELTA, min(prev_rating + MAX_RATING_DELTA, rating)),
+        min(max(rd, MIN_DEVIATION), MAX_DEVIATION),
+        min(vol, MAX_VOLATILITY),
+        games,
+    )
 
 
 def _new_volatility(phi: float, v: float, delta: float, sigma: float, tau: float = TAU) -> float:
@@ -111,40 +127,42 @@ def update(player: Rating, opponents: list[tuple[Rating, float]], tau: float = T
     defined over a *period* of games, not a single game; passing one pair is legal and is what
     an online update does.
     """
+    phi = player.phi
     if not opponents:
         # No games: only uncertainty grows.
-        phi_star = math.sqrt(player.phi ** 2 + player.vol ** 2)
-        return Rating(player.rating, min(phi_star * SCALE, MAX_DEVIATION),
-                      player.vol, player.games, list(player.history))
+        phi_star = math.sqrt(phi ** 2 + player.vol ** 2)
+        return _clamped(player.rating, phi_star * SCALE, player.vol,
+                        player.games, player.rating)
 
     mu = player.mu
     v_inv = 0.0
     delta_sum = 0.0
     for opp, score in opponents:
-        e = _expected(mu, opp.mu, opp.phi)
         g = _g(opp.phi)
+        e = _expected(mu, opp.mu, g)
         v_inv += g * g * e * (1.0 - e)
         delta_sum += g * (score - e)
 
-    if v_inv <= 0:
-        return player
+    if v_inv <= 0.0:
+        # Every opponent's E saturated to 0 or 1 in float64, so v -> infinity. Steps 6-7 still
+        # have a limit there — phi' -> phi_star and mu' = mu + phi_star^2 * delta_sum — and
+        # delta_sum is *not* zero, so taking the limit keeps the game instead of discarding it.
+        # (Reachable at roughly 6,400 points of rating gap, where exp() saturates.)
+        phi_star = math.sqrt(phi ** 2 + player.vol ** 2)
+        mu_prime = mu + phi_star * phi_star * delta_sum
+        return _clamped(mu_prime * SCALE + DEFAULT_RATING, phi_star * SCALE,
+                        player.vol, player.games + len(opponents), player.rating)
+
     v = 1.0 / v_inv
     delta = v * delta_sum
 
-    sigma_prime = min(_new_volatility(player.phi, v, delta, player.vol, tau), MAX_VOLATILITY)
-    phi_star = math.sqrt(player.phi ** 2 + sigma_prime ** 2)
+    sigma_prime = min(_new_volatility(phi, v, delta, player.vol, tau), MAX_VOLATILITY)
+    phi_star = math.sqrt(phi ** 2 + sigma_prime ** 2)
     phi_prime = 1.0 / math.sqrt(1.0 / (phi_star * phi_star) + 1.0 / v)
     mu_prime = mu + phi_prime * phi_prime * delta_sum
 
-    new_rating = mu_prime * SCALE + DEFAULT_RATING
-    # Lichess clamp: no single update may move a rating more than 700 points.
-    new_rating = max(player.rating - MAX_RATING_DELTA,
-                     min(player.rating + MAX_RATING_DELTA, new_rating))
-    new_rd = min(max(phi_prime * SCALE, MIN_DEVIATION), MAX_DEVIATION)
-
-    return Rating(new_rating, new_rd, sigma_prime,
-                  player.games + len(opponents),
-                  player.history + [new_rating])
+    return _clamped(mu_prime * SCALE + DEFAULT_RATING, phi_prime * SCALE,
+                    sigma_prime, player.games + len(opponents), player.rating)
 
 
 def play(player: Rating, puzzle: Rating, solved: bool,
@@ -172,11 +190,15 @@ def play(player: Rating, puzzle: Rating, solved: bool,
 
 
 def _lerp(before: Rating, after: Rating, w: float) -> Rating:
-    """Apply only `w` of an update. Used for damped (hinted) attempts."""
+    """Apply only `w` of an update. Used for damped (hinted) attempts.
+
+    Every rated component is damped, volatility included — passing volatility through at full
+    strength would let a `weight=0.0` attempt move the rating's uncertainty anyway. The game
+    still counts, so `games` comes from `after`.
+    """
     return Rating(
         before.rating + (after.rating - before.rating) * w,
         before.rd + (after.rd - before.rd) * w,
-        after.vol,
+        before.vol + (after.vol - before.vol) * w,
         after.games,
-        before.history + [before.rating + (after.rating - before.rating) * w],
     )
