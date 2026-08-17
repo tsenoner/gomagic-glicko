@@ -35,9 +35,9 @@ jobs:
         run: ./tests/test_parse_tree.py
 
       - name: Build the reading view of docs/METHOD.md
-        # Also runs check_js(): the character-class guard, plus node --check over the inlined
-        # script. A parse-time error there silently disables the whole page, so it must fail the
-        # build rather than ship.
+        # Checks docs/assets/ on the way: balanced braces in style.css, and node --check plus the
+        # character-class guard on app.js — both against the files that actually ship. A parse
+        # error in the script silently disables the whole page, so it must fail the build.
         run: ./docs/build.py --out /tmp/method.html
 
       - name: Smoke-run the experiments

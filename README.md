@@ -280,6 +280,8 @@ validation, a build of `docs/METHOD.md`, and asserts the section-1 inventory sti
 
 ```
 docs/METHOD.md          the full method write-up: what, why and how, from Elo onwards
+docs/build.py           renders METHOD.md into out/method.html (a reading view)
+docs/assets/            that page's stylesheet and script, as real files
 NOTICE                  third-party content: the page snapshot, and what is Lichess's
 src/parse_tree.py       public skill-tree parser
 src/glicko2.py          Glicko-2 + Lichess production rules

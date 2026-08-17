@@ -1,0 +1,247 @@
+/* Registered so --read-line's *computed* value is a resolved <length>. Unregistered, the mobile
+   calc() below computes to an unresolved token stream, parseFloat() reads NaN, and the JS silently
+   falls back to a guess — which defeats the whole point of deriving the probe from the anchor. */
+@property --read-line{ syntax: "<length>"; inherits: true; initial-value: 96px }
+/* --- palette -------------------------------------------------------------------------------
+   The dark values are declared ONCE, in :root, as --d-* tokens; the two rules below only map them
+   onto the live names. Plain CSS cannot share a declaration block between a media query and an
+   attribute selector, so the mapping lines are unavoidably written twice — but the hex values are
+   not, and those were the hazard: a one-line colour edit used to be able to update system-dark
+   viewers while leaving the explicit toggle on the old palette.
+   --accent and every component style resolve through the live names, so they follow for free. */
+:root{
+  /* light, active by default */
+  --ground:#f7f8fa; --surface:#ffffff; --surface-2:#f1f3f7;
+  --ink:#14181f; --ink-soft:#4d5666; --ink-faint:#7b8494;
+  --rule:#dfe3ea; --rule-soft:#eaeef3;
+  --ungated:#2563eb; --gated:#c2381f; --linking:#15803d;
+
+  /* dark, declared but not applied here */
+  --d-ground:#0f1319; --d-surface:#161c24; --d-surface-2:#1b222c;
+  --d-ink:#e6eaf0; --d-ink-soft:#9aa5b5; --d-ink-faint:#75808f;
+  --d-rule:#263040; --d-rule-soft:#1e2632;
+  --d-ungated:#6ea8ff; --d-gated:#ff8a70; --d-linking:#5fcf8a;
+
+  --accent:var(--ungated);
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",Palatino,"Times New Roman",serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  /* One property drives both where an anchored heading lands and where the scroll-spy probes,
+     so clicking a rail link cannot highlight the row above the one you clicked. */
+  --read-line:96px;
+}
+/* system dark, no explicit choice made */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:var(--d-ground); --surface:var(--d-surface); --surface-2:var(--d-surface-2);
+    --ink:var(--d-ink); --ink-soft:var(--d-ink-soft); --ink-faint:var(--d-ink-faint);
+    --rule:var(--d-rule); --rule-soft:var(--d-rule-soft);
+    --ungated:var(--d-ungated); --gated:var(--d-gated); --linking:var(--d-linking);
+  }
+}
+/* an explicit dark toggle, which must also win on a light OS */
+:root[data-theme="dark"]{
+  --ground:var(--d-ground); --surface:var(--d-surface); --surface-2:var(--d-surface-2);
+  --ink:var(--d-ink); --ink-soft:var(--d-ink-soft); --ink-faint:var(--d-ink-faint);
+  --rule:var(--d-rule); --rule-soft:var(--d-rule-soft);
+  --ungated:var(--d-ungated); --gated:var(--d-gated); --linking:var(--d-linking);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--serif);
+  font-size:17px;line-height:1.68;margin:0;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,summary:focus-visible,button:focus-visible,input:focus-visible{
+  outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
+/* NOTE: no html{scroll-behavior:smooth}. It animated history restoration (Back visibly crawled
+   back through 1,800 lines), it animated every citation jump, and it never reached the rail
+   because scroll-behavior does not inherit. Rail scrolling asks for smooth explicitly in JS. */
+h2,h3{scroll-margin-top:var(--read-line)}
+
+.shell{max-width:1240px;margin:0 auto;padding:0 28px}
+/* align-items:start is the only reason position:sticky works on the rail — grid's default
+   stretch would size it to the article's full height, leaving nothing to stick. */
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:56px;align-items:start}
+@media (max-width:1040px){.layout{grid-template-columns:minmax(0,1fr);gap:0}}
+
+header.hero{border-bottom:1px solid var(--rule);margin-bottom:40px}
+.hero-in{padding:56px 0 36px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 18px}
+h1{font-size:clamp(30px,4.4vw,46px);line-height:1.1;letter-spacing:-.02em;font-weight:700;
+  margin:0;text-wrap:balance;max-width:22ch}
+.lede{color:var(--ink-soft);max-width:66ch;margin:20px 0 0}
+.lede p{margin:0 0 12px}
+.lede strong{color:var(--ink)}
+.motif{display:block;width:100%;max-width:660px;height:auto;margin:34px 0 4px;overflow:visible}
+.motif .axis line{stroke:var(--rule);stroke-width:1}
+.motif .tick-true line{stroke:var(--ungated);stroke-width:2.5;stroke-linecap:round}
+.motif .tick-comp line{stroke:var(--gated);stroke-width:2.5;stroke-linecap:round}
+.motif .join path{fill:none;stroke:var(--ink-faint);stroke-width:1;stroke-dasharray:2 3;opacity:.75}
+.motif .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  fill:var(--ink-faint)}
+.motif .cap{font-family:var(--mono);font-size:11px;fill:var(--ink-soft)}
+@media (max-width:720px){.motif .cap{display:none}}
+
+/* ---------------------------------------------------------------- the rail */
+nav.toc{
+  position:sticky; top:0;
+  align-self:start;          /* required for sticky; see .layout above */
+  max-height:100dvh;
+  overflow-x:hidden;         /* overflow-y then computes to auto. Declaring overflow-y:auto with
+                                overflow-x:visible makes overflow-x compute to auto too, which
+                                gives a spurious horizontal scrollbar AND clips focus rings. */
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding:8px 10px 48px;     /* room for outline-offset:3px inside the scrollport */
+  margin-inline:-10px;       /* pay that padding back to the grid */
+  font-family:var(--mono); font-size:12.5px; line-height:1.5;
+}
+.toc-top{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 12px;text-decoration:none}
+.toc-top:hover{color:var(--accent)}
+.toc-find{display:block;margin:0 0 12px}
+.toc-find input{width:100%;font:inherit;font-size:12px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:5px 8px}
+.toc-find input::placeholder{color:var(--ink-faint)}
+.toc-list,.toc-sub{list-style:none;margin:0;padding:0}
+.toc-list{display:flex;flex-direction:column;gap:1px}
+.toc-sec{position:relative}
+.toc-sec>a{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:baseline;
+  padding:5px 26px 5px 6px;text-decoration:none;color:var(--ink);border-radius:3px}
+.toc-sec>a:hover{color:var(--accent);background:var(--surface-2)}
+.toc-num{color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.toc-count{color:var(--ink-faint);font-variant-numeric:tabular-nums;font-size:11px}
+.toc-sec[data-open] .toc-count{opacity:0}
+.twist{position:absolute;top:2px;right:0;width:24px;height:24px;display:grid;place-items:center;
+  background:none;border:0;padding:0;cursor:pointer;color:var(--ink-faint);border-radius:3px}
+.twist:hover{color:var(--accent);background:var(--surface-2)}
+.twist svg{width:9px;height:9px;fill:currentColor;transition:transform .15s ease}
+@media (prefers-reduced-motion:reduce){.twist svg{transition:none}}
+.toc-sec[data-open] .twist svg{transform:rotate(90deg)}
+.toc-sub{margin:1px 0 8px 30px;display:flex;flex-direction:column;gap:1px;
+  border-left:1px solid var(--rule-soft);padding-left:12px}
+.toc-sub a{display:block;padding:3px 6px 3px 0;color:var(--ink-soft);text-decoration:none;
+  font-size:12px;border-radius:3px}
+.toc-sub a:hover{color:var(--accent)}
+/* Collapsed only once JS says so, so the no-JS page ships fully expanded. */
+nav.toc[data-js] .toc-sub{display:none}
+nav.toc[data-js] .toc-sec[data-open]>.toc-sub{display:block}
+/* Derived from aria-current with :has(), not tracked in a second attribute that could drift. */
+.toc-sec:has(a[aria-current])>a{font-weight:700}
+.toc-sec:has(a[aria-current])>a .toc-num{color:var(--accent)}
+/* aria-current is the ONLY active-state hook: the visual state cannot drift from the announced
+   one because there is no second variable. A static inset shadow, not an animated marker. */
+nav.toc a[aria-current]{color:var(--accent);box-shadow:inset 2px 0 0 var(--accent)}
+.toc-sec>a[aria-current] .toc-num{color:var(--accent)}
+/* filter: these follow the accordion rules deliberately — equal specificity, later wins */
+nav.toc.filtering li{display:none}
+nav.toc.filtering li:has(a.hit){display:block}
+nav.toc.filtering .toc-sub{display:block}
+nav.toc.filtering .twist{visibility:hidden}
+.toc-bar{display:none}
+
+@media (max-width:1040px){
+  nav.toc{position:sticky;top:0;max-height:none;overflow:visible;padding:0 0 16px;
+    margin-inline:0;background:var(--ground);z-index:5;
+    border-bottom:1px solid var(--rule);margin-bottom:32px}
+  .toc-bar{display:block;position:sticky;top:0;background:var(--ground);
+    border-bottom:1px solid var(--rule-soft)}
+  .toc-bar button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;
+    font:inherit;color:var(--ink);background:none;border:0;padding:11px 2px;cursor:pointer}
+  .toc-bar .caret{margin-left:auto;color:var(--ink-faint)}
+  .toc-top{display:none}
+  nav.toc[data-panel="closed"] .toc-list,
+  nav.toc[data-panel="closed"] .toc-find{display:none}
+  nav.toc .toc-list{max-height:70dvh;overflow-y:auto;overscroll-behavior:contain;padding-top:10px}
+  :root{--read-line:calc(var(--toc-bar,44px) + 60px)}
+}
+
+/* ------------------------------------------------------------- the article */
+article{padding-bottom:120px;min-width:0}
+article>*{max-width:68ch}
+h2{font-size:clamp(23px,2.6vw,29px);line-height:1.2;letter-spacing:-.015em;font-weight:700;
+  margin:72px 0 6px;padding-top:22px;border-top:1px solid var(--rule);text-wrap:balance}
+h2:first-child{margin-top:0;border-top:0;padding-top:0}
+h3{font-size:18.5px;line-height:1.3;font-weight:700;margin:38px 0 4px;letter-spacing:-.008em;
+  text-wrap:balance;color:var(--ink)}
+h2:focus-visible,h3:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+p{margin:14px 0}
+ul,ol{margin:14px 0;padding-left:22px}
+li{margin:7px 0}
+li>p{margin:7px 0}
+blockquote{margin:20px 0;padding:2px 0 2px 20px;border-left:2px solid var(--accent);
+  color:var(--ink-soft);font-style:italic}
+blockquote p{margin:6px 0}
+hr{border:0;border-top:1px solid var(--rule);margin:44px 0}
+
+code{font-family:var(--mono);font-size:.855em;background:var(--surface-2);padding:.12em .34em;
+  border-radius:3px;color:var(--ink)}
+pre{background:var(--surface);border:1px solid var(--rule);border-radius:5px;padding:16px 18px;
+  overflow-x:auto;margin:20px 0;max-width:82ch;line-height:1.55}
+pre code{background:none;padding:0;font-size:12.9px;white-space:pre}
+
+.tw{overflow-x:auto;margin:22px 0;max-width:100%;border:1px solid var(--rule);border-radius:5px;
+  background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;font-family:var(--mono)}
+th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+  font-weight:500;text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule);
+  white-space:nowrap;background:var(--surface-2)}
+td{padding:9px 14px;border-bottom:1px solid var(--rule-soft);vertical-align:top;
+  color:var(--ink-soft);line-height:1.5}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:var(--ink)}
+td strong{color:var(--ink)}
+td code,th code{font-size:12.5px;background:none;padding:0}
+td:not(.num){font-family:var(--serif);font-size:15px}
+
+/* ----------------------------------------------------------- citations */
+/* line-height:0 is load-bearing: an unstyled superscript inflates its line box, so every
+   paragraph carrying a citation would sit visibly taller than its neighbours at 17px/1.68. */
+sup{line-height:0;font-size:.72em;vertical-align:super;unicode-bidi:isolate}
+.cite-ref{font-family:var(--mono);font-variant-numeric:tabular-nums;text-decoration:none;
+  color:var(--accent);padding:.35em .3em;margin:-.35em -.1em;border-radius:3px}
+/* brackets as generated content: the document is full of real exponents (σ², φ²) */
+.cite-ref::before{content:"["}
+.cite-ref::after{content:"]"}
+.cite-ref:hover{background:var(--surface-2)}
+.cite-ref:target{background:var(--surface-2);box-shadow:0 0 0 2px var(--accent)}
+.footnote-backref{text-decoration:none;color:var(--ink-faint);padding:.2em .3em;margin-left:.15em}
+.footnote-backref:hover{color:var(--accent)}
+.footnote-backref sup{font-family:var(--mono);font-size:.7em}
+.ref-list{font-size:15.5px;padding-left:26px}
+.ref-list li{scroll-margin-top:var(--read-line);padding:4px 10px;margin-left:-10px;
+  border-radius:4px}
+.ref-list li p{margin:4px 0}
+.ref-list code{font-size:.82em}
+@media (prefers-reduced-motion:no-preference){.ref-list li{transition:background-color .3s ease}}
+.ref-list li:target{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+#cite-pop{position:fixed;inset:auto;margin:0;width:max-content;
+  max-width:min(46ch,calc(100vw - 24px));background:var(--surface);color:var(--ink);
+  border:1px solid var(--rule);border-radius:6px;padding:12px 14px;font-family:var(--serif);
+  font-size:14.5px;line-height:1.5;box-shadow:0 6px 24px rgb(0 0 0 / .18)}
+#cite-pop:not(:popover-open){display:none}
+#cite-pop p{margin:0}
+#cite-pop code{font-size:.82em}
+
+/* ------------------------------------------------------- back / forward */
+.jump{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:40;
+  display:flex;align-items:stretch;gap:1px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:999px;overflow:hidden;
+  box-shadow:0 4px 20px rgb(0 0 0 / .16);font-family:var(--mono);font-size:12.5px}
+.jump[hidden]{display:none}
+.jump button{font:inherit;color:var(--ink);background:none;border:0;cursor:pointer;
+  padding:9px 15px;display:flex;align-items:center;gap:7px;max-width:34ch}
+.jump button:hover{background:var(--surface-2);color:var(--accent)}
+.jump button[hidden]{display:none}
+.jump .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jump .arrow{color:var(--ink-faint);flex:none}
+.jump .sep{width:1px;background:var(--rule);flex:none}
+@media (max-width:1040px){
+  .jump{left:0;right:0;bottom:0;transform:none;border-radius:0;border-left:0;border-right:0;
+    border-bottom:0;padding-bottom:env(safe-area-inset-bottom)}
+  .jump button{flex:1;justify-content:center}
+}
+
+.footer{border-top:1px solid var(--rule);padding:26px 0 60px;color:var(--ink-faint);
+  font-family:var(--mono);font-size:12px;max-width:68ch}
