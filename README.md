@@ -14,6 +14,10 @@ real penalty at low volume, which no choice of estimator fixes.
 Nothing here uses private data. The skill-tree structure is parsed from a public page; everything
 else is simulated.
 
+**New to this?** [`docs/METHOD.md`](docs/METHOD.md) is the full write-up — what Elo, Glicko and
+Glicko-2 each add and why it matters for puzzles, the algorithm step by step, how the experiment
+works, and what the results mean. It assumes only that you have heard of Elo.
+
 ---
 
 ## What this does not claim
@@ -33,10 +37,10 @@ Neither estimator fixes an origin, so raw RMSE against the planted difficulties 
 and some alignment is required. There are two ways to do it, they answer different questions, and
 conflating them is the easiest way to fool yourself here — so every table below reports both:
 
-| | what it removes | what it can still see |
-|---|---|---|
-| **RMSE(off)** | a mean offset | ordering **and** spacing — a compressed scale still counts as error |
-| **RMSE(aff)** | a full least-squares affine map | ordering only |
+|                     | what it removes                 | what it can still see                                                     |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------- |
+| **RMSE(off)** | a mean offset                   | ordering**and** spacing — a compressed scale still counts as error |
+| **RMSE(aff)** | a full least-squares affine map | ordering only                                                             |
 
 RMSE(aff) is scale-free *by construction*: algebraically it equals `sd(truth) · √(1 − r²)`, so it
 is Pearson correlation wearing rating-point units. It cannot see scale error at all, and its
@@ -52,13 +56,13 @@ fitted scale is already right, 2.6 means the fitted spread is 2.6× too narrow.
 
 `src/parse_tree.py` reads the `data-*` attributes on `gomagic.org/go-problems/`:
 
-| | |
-|---|---|
-| Skill nodes | **74** across 3 tiers: basics 30–18k (20), intermediate 18–10k (25), sdk 9–1k (29) |
-| Prerequisite rows | **35** — progression is row-by-row, not a dependency graph |
-| Structure | 1–5 levels per node × 2–6 quizzes per level × 5 puzzles per quiz |
-| Attempt slots to complete the tree | **4,790** |
-| Concept tags | `{opening, middle-game, endgame}` × `{fighting, tesuji, life-and-death, analysis, knowledge}` |
+|                                    |                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Skill nodes                        | **74** across 3 tiers: basics 30–18k (20), intermediate 18–10k (25), sdk 9–1k (29)        |
+| Prerequisite rows                  | **35** — progression is row-by-row, not a dependency graph                                  |
+| Structure                          | 1–5 levels per node × 2–6 quizzes per level × 5 puzzles per quiz                               |
+| Attempt slots to complete the tree | **4,790**                                                                                    |
+| Concept tags                       | `{opening, middle-game, endgame}` × `{fighting, tesuji, life-and-death, analysis, knowledge}` |
 
 That 3×5 tag grid is already the vocabulary a difficulty model, or a mistake classifier, would
 target. It does not need inventing.
@@ -83,10 +87,10 @@ near their own level and the attempt matrix is *banded* rather than dense.
 Online Glicko-2, as a live system would run it. 300 puzzles, 3,000 players, 2 reps:
 
 | attempts/puzzle | random RMSE(off) | random ρ | gated RMSE(off) | gated ρ | gated slope |
-|---|---|---|---|---|---|
-| 10 | 247 | 0.88 | 404 | 0.41 | 1.17 |
-| 40 | 164 | 0.97 | 349 | 0.78 | 2.63 |
-| 160 | 104 | 0.99 | 279 | 0.95 | 2.35 |
+| --------------- | ---------------- | --------- | --------------- | -------- | ----------- |
+| 10              | 247              | 0.88      | 404             | 0.41     | 1.17        |
+| 40              | 164              | 0.97      | 349             | 0.78     | 2.63        |
+| 160             | 104              | 0.99      | 279             | 0.95     | 2.35        |
 
 Gated recovery error does **not** plateau — it falls steadily, by roughly 28 points per doubling
 of attempts across the full 3→160 sweep, against 39 points per doubling for random pairing. It is
@@ -106,20 +110,20 @@ a joint Rasch MAP fit. Both files seed the world and the log the same way, so th
 below are the *same runs* as the section-3 table, digit for digit, and the two sections are
 directly comparable. 300 puzzles, 3,000 players, 2 reps:
 
-| attempts | regime | estimator | RMSE(off) | RMSE(aff) | slope | ρ |
-|---|---|---|---|---|---|---|
-| 10 | random | online | 247 | 212 | 1.48 | 0.88 |
-| 10 | random | batch | 237 | 212 | 1.37 | 0.88 |
-| 10 | gated | online | 404 | 402 | 1.17 | 0.41 |
-| 10 | gated | batch | **383** | 380 | 1.27 | 0.50 |
-| 40 | random | online | 164 | 116 | 1.37 | 0.97 |
-| 40 | random | batch | 129 | 105 | 1.21 | 0.97 |
-| 40 | gated | online | 349 | 271 | 2.63 | 0.78 |
-| 40 | gated | batch | **241** | 139 | 1.87 | 0.95 |
-| 160 | random | online | 104 | 76 | 1.20 | 0.99 |
-| 160 | random | batch | 63 | 51 | 1.09 | 0.99 |
-| 160 | gated | online | 279 | 139 | 2.35 | 0.95 |
-| 160 | gated | batch | **103** | 39 | 1.28 | 1.00 |
+| attempts | regime | estimator | RMSE(off)     | RMSE(aff) | slope | ρ   |
+| -------- | ------ | --------- | ------------- | --------- | ----- | ---- |
+| 10       | random | online    | 247           | 212       | 1.48  | 0.88 |
+| 10       | random | batch     | 237           | 212       | 1.37  | 0.88 |
+| 10       | gated  | online    | 404           | 402       | 1.17  | 0.41 |
+| 10       | gated  | batch     | **383** | 380       | 1.27  | 0.50 |
+| 40       | random | online    | 164           | 116       | 1.37  | 0.97 |
+| 40       | random | batch     | 129           | 105       | 1.21  | 0.97 |
+| 40       | gated  | online    | 349           | 271       | 2.63  | 0.78 |
+| 40       | gated  | batch     | **241** | 139       | 1.87  | 0.95 |
+| 160      | random | online    | 104           | 76        | 1.20  | 0.99 |
+| 160      | random | batch     | 63            | 51        | 1.09  | 0.99 |
+| 160      | gated  | online    | 279           | 139       | 2.35  | 0.95 |
+| 160      | gated  | batch     | **103** | 39        | 1.28  | 1.00 |
 
 Read the last two rows. Under gating at 160 attempts per puzzle, online Glicko sits at 279 RMSE
 with its scale compressed 2.35×; the joint fit on the same log reaches **103 with slope 1.28** — a
@@ -145,12 +149,12 @@ Reserve the online estimator for the live path, where it is the right tool.
 Common items served ungated to everyone are the standard psychometric fix for a poorly connected
 design. At 40 attempts per puzzle (`--linking 0.25 0.5 1.0`):
 
-| ungated fraction | RMSE(off) | slope | ρ |
-|---|---|---|---|
-| 0% | 349 | 2.63 | 0.78 |
-| 25% | 281 | 1.75 | 0.88 |
-| 50% | 234 | 1.57 | 0.92 |
-| 100% | 164 | 1.37 | 0.97 |
+| ungated fraction | RMSE(off) | slope | ρ   |
+| ---------------- | --------- | ----- | ---- |
+| 0%               | 349       | 2.63  | 0.78 |
+| 25%              | 281       | 1.75  | 0.88 |
+| 50%              | 234       | 1.57  | 0.92 |
+| 100%             | 164       | 1.37  | 0.97 |
 
 Monotone, with no threshold to exploit, and with diminishing returns: the first 25% of ungated
 traffic buys 68 RMSE points, the next 47, and the top half about 35 per 25%. Most of the scale
@@ -245,6 +249,7 @@ dependencies through inline script metadata, so there is no environment to set u
 ## Layout
 
 ```
+docs/METHOD.md          the full method write-up: what, why and how, from Elo onwards
 src/parse_tree.py       public skill-tree parser
 src/glicko2.py          Glicko-2 + Lichess production rules
 src/recovery.py         the planted world, the attempt log, online fitting, scoring, the plot
