@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["numpy"]
+# dependencies = ["numpy>=1.26"]
 # ///
 """
 Is the gating penalty real, or an artefact of using an *online* estimator?

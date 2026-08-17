@@ -23,29 +23,38 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      # Both suites are plain scripts that exit non-zero on failure, so the published contracts
+      # live in Python where they can assert exact values. This step used to grep the parser's
+      # human-readable summary for four numbers, which accepted any value whose decimal expansion
+      # began with the pinned digits ("74" matches "740") and matched "4,790" anywhere in the
+      # output, including a per-tier subtotal.
       - name: Validate the estimator against Glickman's worked example
         run: ./tests/test_glicko2.py
 
-      - name: Parse the committed snapshot and assert the published inventory
-        run: |
-          ./src/parse_tree.py --html data/skilltree-2026-08-16.html | tee /tmp/tree.txt
-          # docs/METHOD.md section 1 and README section 1 quote these. If the parser or the
-          # snapshot drifts, the published numbers become wrong silently — so pin them here.
-          grep -q 'Skill nodes            74'  /tmp/tree.txt
-          grep -q 'Prerequisite rows      35'  /tmp/tree.txt
-          grep -q 'Hardmode nodes         23'  /tmp/tree.txt
-          grep -q '4,790'                      /tmp/tree.txt
+      - name: Assert the published skill-tree inventory
+        run: ./tests/test_parse_tree.py
 
       - name: Build the reading view of docs/METHOD.md
-        # Also runs check_js(): node --check over the inlined script, plus the guard against
-        # non-ASCII inside a character class. A parse-time error there silently disables the
-        # whole page, so it must fail the build rather than ship.
+        # Also runs check_js(): the character-class guard, plus node --check over the inlined
+        # script. A parse-time error there silently disables the whole page, so it must fail the
+        # build rather than ship.
         run: ./docs/build.py --out /tmp/method.html
 
       - name: Smoke-run the experiments
         run: |
           ./src/recovery.py --quick --out /tmp/recovery.png
           ./src/batch_fit.py --quick --puzzles 120 --players 1200
+
+      # The scripts are advertised as runnable standalone — no checkout, no project environment —
+      # through their PEP 723 inline headers. That path resolves a different dependency set than
+      # `uv sync`, so it gets its own check rather than being assumed to work.
+      - name: Run a script standalone, outside the project environment
+        run: |
+          work="$(mktemp -d)"
+          mkdir -p "$work/src" "$work/tests"
+          cp src/glicko2.py "$work/src/"
+          cp tests/test_glicko2.py "$work/tests/"
+          cd "$work" && ./tests/test_glicko2.py
 
       - uses: actions/upload-artifact@v7
         with:

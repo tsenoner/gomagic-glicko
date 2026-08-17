@@ -60,7 +60,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # The docstring in every script IS the --help text, so it is prose, not documentation boilerplate.
 "src/*.py" = ["E402"]      # sys.path.insert must precede the local imports it enables
-"docs/build.py" = ["E501"]
 "tests/*.py" = ["E402"]
 
 # The formatter is deliberately NOT used. These scripts are written to be read: the module

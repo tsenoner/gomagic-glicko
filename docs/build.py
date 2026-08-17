@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import os
 import re
 import shutil
 import subprocess
@@ -81,7 +80,21 @@ def motif(width: int = 660, left: int = 96, span: int = 520) -> str:
 # gated one, green the linking items. The reds are deepened from the plot values so they hold up
 # as text. Every token is defined on bare :root first, then redefined for dark — a colour whose
 # only definition sits behind a media query never applies in the viewer's default "system" state.
+DARK = """
+  --ground:#0f1319; --surface:#161c24; --surface-2:#1b222c;
+  --ink:#e6eaf0; --ink-soft:#9aa5b5; --ink-faint:#75808f;
+  --rule:#263040; --rule-soft:#1e2632;
+  --ungated:#6ea8ff; --gated:#ff8a70; --linking:#5fcf8a;
+"""
+
+# The dark palette applies through two selectors — the media query for viewers on system dark, and
+# the stamped attribute for an explicit toggle — but there is only one palette. Writing the eleven
+# tokens out twice meant a one-line edit could silently update only half the viewers.
 CSS = """
+/* Registered so --read-line's *computed* value is a resolved <length>. Unregistered, the mobile
+   calc() below computes to an unresolved token stream, parseFloat() reads NaN, and the JS silently
+   falls back to a guess — which defeats the whole point of deriving the probe from the anchor. */
+@property --read-line{ syntax: "<length>"; inherits: true; initial-value: 96px }
 :root{
   --ground:#f7f8fa; --surface:#ffffff; --surface-2:#f1f3f7;
   --ink:#14181f; --ink-soft:#4d5666; --ink-faint:#7b8494;
@@ -95,19 +108,9 @@ CSS = """
   --read-line:96px;
 }
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --ground:#0f1319; --surface:#161c24; --surface-2:#1b222c;
-    --ink:#e6eaf0; --ink-soft:#9aa5b5; --ink-faint:#75808f;
-    --rule:#263040; --rule-soft:#1e2632;
-    --ungated:#6ea8ff; --gated:#ff8a70; --linking:#5fcf8a;
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#0f1319; --surface:#161c24; --surface-2:#1b222c;
-  --ink:#e6eaf0; --ink-soft:#9aa5b5; --ink-faint:#75808f;
-  --rule:#263040; --rule-soft:#1e2632;
-  --ungated:#6ea8ff; --gated:#ff8a70; --linking:#5fcf8a;
-}
+  :root:not([data-theme="light"]){{{DARK}}}
+}}
+:root[data-theme="dark"]{{{DARK}}}
 *{box-sizing:border-box}
 body{background:var(--ground);color:var(--ink);font-family:var(--serif);
   font-size:17px;line-height:1.68;margin:0;-webkit-font-smoothing:antialiased}
@@ -190,8 +193,9 @@ nav.toc{
 /* Collapsed only once JS says so, so the no-JS page ships fully expanded. */
 nav.toc[data-js] .toc-sub{display:none}
 nav.toc[data-js] .toc-sec[data-open]>.toc-sub{display:block}
-.toc-sec[data-inside]>a{font-weight:700}
-.toc-sec[data-inside]>a .toc-num{color:var(--accent)}
+/* Derived from aria-current with :has(), not tracked in a second attribute that could drift. */
+.toc-sec:has(a[aria-current])>a{font-weight:700}
+.toc-sec:has(a[aria-current])>a .toc-num{color:var(--accent)}
 /* aria-current is the ONLY active-state hook: the visual state cannot drift from the announced
    one because there is no second variable. A static inset shadow, not an animated marker. */
 nav.toc a[aria-current]{color:var(--accent);box-shadow:inset 2px 0 0 var(--accent)}
@@ -307,7 +311,7 @@ sup{line-height:0;font-size:.72em;vertical-align:super;unicode-bidi:isolate}
 
 .footer{border-top:1px solid var(--rule);padding:26px 0 60px;color:var(--ink-faint);
   font-family:var(--mono);font-size:12px;max-width:68ch}
-"""
+""".replace("{{DARK}}", DARK)
 
 JS = r"""
 (function(){
@@ -329,22 +333,34 @@ var secs  = [].slice.call(nav.querySelectorAll('.toc-sec'));
    enter the band, so it is never highlightable. This scan is total, direction-independent and
    clamped at the tail. */
 var tops = [], cur = -1, queued = false;
+/* One source of truth for both the anchor outset and the spy probe: --read-line is registered as
+   a <length> in CSS, so this always reads a resolved pixel value. */
 function LINE(){
-  var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--read-line'));
-  return (isNaN(v) ? 96 : v) + 24;
+  return parseFloat(getComputedStyle(document.documentElement)
+                    .getPropertyValue('--read-line')) + 24;
 }
 function measure(){
   tops = heads.map(function(h){ return h.getBoundingClientRect().top + scrollY; });
 }
+/* Index of the last heading at or above `y`, or -1 when `y` is above the first one. The scroll-spy
+   and the back-pill label both ask this question, so they ask it in one place. */
+function idxAt(y){
+  var lo = 0, hi = tops.length - 1, i = -1;
+  while (lo <= hi){ var m = (lo + hi) >> 1; if (tops[m] <= y){ i = m; lo = m + 1; } else hi = m - 1; }
+  return i;
+}
 function pick(){
   queued = false;
   var doc = document.documentElement;
+  /* Tail clamp: the last heading can sit too near the document end to ever reach the probe. */
   if (scrollY + innerHeight >= doc.scrollHeight - 2) return set(heads.length - 1);
-  var y = scrollY + LINE(), lo = 0, hi = tops.length - 1, i = 0;
-  while (lo <= hi){ var m = (lo + hi) >> 1; if (tops[m] <= y){ i = m; lo = m + 1; } else hi = m - 1; }
-  set(i);
+  set(Math.max(0, idxAt(scrollY + LINE())));
 }
 function set(i){ if (i === cur || i < 0) return; cur = i; applyActive(heads[i]); }
+/* One rAF per scroll burst does both jobs. renderJump used to be called from the scroll listener
+   behind `!wrap.hidden`, which is the state renderJump itself computes — a one-way latch: once the
+   pill hid, no amount of scrolling could bring it back. */
+function onFrame(){ pick(); renderJump(); }
 
 function applyActive(h){
   var prev = nav.querySelector('a[aria-current]');
@@ -362,11 +378,8 @@ function applyActive(h){
 function openGroup(li){
   for (var i = 0; i < secs.length; i++){
     var s = secs[i];
-    if (s === li){ s.setAttribute('data-open',''); s.setAttribute('data-inside',''); }
-    else {
-      s.removeAttribute('data-inside');
-      if (!s.hasAttribute('data-pinned')) s.removeAttribute('data-open');
-    }
+    if (s === li) s.setAttribute('data-open','');
+    else if (!s.hasAttribute('data-pinned')) s.removeAttribute('data-open');
     var b = s.querySelector('.twist');
     if (b) b.setAttribute('aria-expanded', s.hasAttribute('data-open') ? 'true' : 'false');
   }
@@ -537,8 +550,7 @@ var frames = [], depth = 0, pending = null, pendT = null, dismissed = false;
 try { history.replaceState({ d: 0 }, ''); } catch (err) {}
 
 function labelAt(y){
-  var probe = y + LINE(), lo = 0, hi = tops.length - 1, i = -1;
-  while (lo <= hi){ var m = (lo + hi) >> 1; if (tops[m] <= probe){ i = m; lo = m + 1; } else hi = m - 1; }
+  var i = idxAt(y + LINE());
   return i < 0 ? 'the top' : heads[i].textContent.trim();
 }
 function renderJump(){
@@ -571,7 +583,9 @@ addEventListener('hashchange', function(){
     frames[depth] = pending;
     frames.length = depth + 1;                 /* truncate any forward branch */
     depth++;
-    try { history.replaceState({ d: depth, label: pending.label, y: pending.y }, ''); } catch (err) {}
+    /* Only `d` is ever read back (in popstate). The label and scroll position live in `frames`,
+       which is the same lifetime, so stamping them here was write-only state. */
+    try { history.replaceState({ d: depth }, ''); } catch (err) {}
     pending = null;
   }
   dismissed = false;
@@ -587,6 +601,11 @@ addEventListener('hashchange', function(){
 /* popstate is UI-sync only. Never scrollTo() here — the UA's own restoration runs after this
    handler, so anything written now is overwritten a frame later. */
 addEventListener('popstate', function(e){
+  /* A *new* fragment navigation also fires popstate (with a null state) just before hashchange.
+     Letting that reset depth pinned the stack at 1 and truncated frames on every jump, so the
+     forward button never appeared and Back went to the wrong place. If a commit is pending, this
+     is that synthetic event: leave depth alone and let hashchange own it. */
+  if (pending) return;
   depth = (e.state && e.state.d) || 0;
   renderJump();
 });
@@ -605,13 +624,18 @@ if (fwdBtn) fwdBtn.addEventListener('click', function(){
   if (depth < frames.length) history.forward();
 });
 addEventListener('keydown', function(e){
-  if (e.key === 'Escape' && wrap && !wrap.hidden){ dismissed = true; renderJump(); }
+  /* Only dismiss the pill if Escape was not already spent closing the popover, and not while
+     focus is inside the rail's filter (where Escape clears the query). */
+  if (e.key !== 'Escape' || !wrap || wrap.hidden) return;
+  if (pop && pop.matches(':popover-open')) return;
+  if (e.target === q) return;
+  dismissed = true;
+  renderJump();
 });
 
 /* ------------------------------------------------------------------ wiring */
 addEventListener('scroll', function(){
-  if (!queued){ queued = true; requestAnimationFrame(pick); }
-  if (wrap && !wrap.hidden) renderJump();
+  if (!queued){ queued = true; requestAnimationFrame(onFrame); }
 }, { passive: true });
 addEventListener('resize', function(){ barHeight(); measure(); pick(); });
 /* 23 tables sit in overflow-x wrappers whose height changes with viewport width, which
@@ -639,7 +663,7 @@ addEventListener('scroll', embedGuard, { once: true, passive: true });
 
 def build_nav(toc_tokens: list) -> str:
     """One nav, rendered once. Two copies would put aria-current on two links for the same id."""
-    out = ['<ol class="toc-list">']
+    out = ['<ol class="toc-list" id="toc-sections">']
     for t in toc_tokens:
         num, _, name = t["name"].partition(". ")
         name = name or t["name"]
@@ -743,38 +767,46 @@ def transform_refs(body: str) -> str:
     )
 
 
-def check_ref_order(md_text: str, front: str) -> None:
-    """python-markdown numbers footnotes by definition order, GitHub by first-reference order.
+def check_ref_order(body: str) -> None:
+    """Fail if the [^key]: definitions are not in first-reference order.
 
-    If they disagree, the same citation is note 9 here and note 1 on github.com. Strip code spans
-    and fences first: the document contains regex literals like `[^>]+` that would otherwise be
-    read as citations.
+    python-markdown numbers footnotes by DEFINITION order; GitHub numbers them by FIRST REFERENCE.
+    When those disagree the same source renders as note 9 here and note 1 there, so the two
+    renderings of one document cite different numbers.
+
+    Read from the parser's own output rather than from the Markdown. The previous version regexed
+    the raw source and had to strip fenced blocks and code spans itself so that regex literals like
+    `[^>]+` in this document were not mistaken for citations — a second, approximate copy of
+    Markdown's code-span rules that handled ``` and single backticks but not indented blocks, `~~~`
+    fences or double-backtick spans. Any of those containing a [^x] token failed the build with a
+    demand to reorder definitions that were already correct.
     """
-    t = re.sub(r"```.*?```", "", md_text, flags=re.S)
-    t = re.sub(r"`[^`\n]*`", "", t)
-    first = list(dict.fromkeys(m.group(1) for m in re.finditer(r"\[\^([^\]\s]+)\](?!:)", t)))
-    defs = re.findall(r"^\[\^([^\]]+)\]:", md_text, re.M)
+    first = list(dict.fromkeys(re.findall(r'id="fnref\d*-([^"]+)"', body)))
+    defs = re.findall(r'<li[^>]*\bid="fn-([^"]+)"', body)
     if defs != first:
         raise SystemExit(
             "docs/METHOD.md: reorder the [^key]: definitions to first-reference order:\n  "
             + ", ".join(first)
         )
-    if "[^" in front:
-        raise SystemExit("docs/METHOD.md: citations are not supported above '## 1.' (the lede)")
 
 
 def render(md_text: str) -> str:
     # Split the h1 and its lede off the body so the hero can be composed explicitly.
     split = re.search(r"^## 1\. ", md_text, re.M)
     front, body_md = md_text[: split.start()], md_text[split.start():]
-    check_ref_order(md_text, front)
+    # The lede is converted by a second Markdown instance with no footnotes extension, so a marker
+    # up there would ship as raw text in the hero.
+    if "[^" in front:
+        raise SystemExit("docs/METHOD.md: citations are not supported above '## 1.' (the lede)")
 
     title = re.search(r"^# (.+)$", front, re.M).group(1)
+    # Keep blank lines: they are the paragraph breaks. Filtering them merged the lede's two
+    # paragraphs into one, so the reading view did not match the source it mirrors.
     lede_md = "\n".join(
         line
         for line in front.splitlines()[1:]
-        if line.strip() and not line.startswith("#") and not line.startswith("---")
-    )
+        if not line.startswith("#") and not line.startswith("---")
+    ).strip()
 
     md = markdown.Markdown(
         extensions=["tables", "fenced_code", "toc", "attr_list", "sane_lists", "footnotes"],
@@ -785,6 +817,7 @@ def render(md_text: str) -> str:
         },
     )
     body = md.convert(body_md)
+    check_ref_order(body)
     toc_tokens = md.toc_tokens  # capture before any reset() clears it
     lede = markdown.Markdown(extensions=["sane_lists"]).convert(lede_md)
 
@@ -809,7 +842,7 @@ def render(md_text: str) -> str:
 <div class="shell"><div class="layout">
   <nav class="toc" aria-label="Contents">
     <div class="toc-bar">
-      <button id="tocbtn" type="button" aria-expanded="false" aria-controls="toc-list">
+      <button id="tocbtn" type="button" aria-expanded="false" aria-controls="toc-sections">
         <span class="toc-num" id="tocbtn-num">1</span>
         <span id="tocbtn-label">Introduction</span>
         <span class="caret" aria-hidden="true">&#9662;</span>
@@ -842,30 +875,17 @@ command at seed 20260816. Public data and simulation only.</p></div>
 
 
 def check_js(js: str) -> str:
-    """Syntax-check the inlined script if a JS engine is around.
+    """Reject an inlined script that would not parse, before it can ship.
 
-    Worth the eight lines: a parse-time SyntaxError anywhere in this script kills *all* of it, so
-    the page silently degrades to a fully-expanded rail with no scroll-spy, no citations popover
-    and no back control — and it still looks fine in a screenshot. That is exactly how the
-    combining-marks regex above shipped once. Skipped, not fatal, when no engine is installed.
+    A parse-time SyntaxError anywhere in this script kills *all* of it, so the page degrades to a
+    fully-expanded rail with no scroll-spy, no citation popover and no back control — and it still
+    screenshots perfectly. That is exactly how the combining-marks regex shipped once.
+
+    Two checks, in this order on purpose: the pure-Python one first, because it needs no engine and
+    therefore is the only protection left on a machine that has none.
     """
-    exe = shutil.which("node") or shutil.which("bun")
-    if not exe:
-        print("  (no node/bun on PATH — skipped the JS syntax check)")
-        return js
-    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as fh:
-        fh.write(js)
-        tmp = fh.name
-    try:
-        r = subprocess.run([exe, "--check", tmp], capture_output=True, text=True)
-        if r.returncode != 0:
-            raise SystemExit("inlined JS failed to parse:\n" + (r.stderr or r.stdout))
-    finally:
-        os.unlink(tmp)
-
-    # Narrower than "no non-ASCII anywhere" — em dashes in comments are fine. What is not fine is
-    # a raw non-ASCII character inside a character class, which is how the combining-marks range
-    # became the invalid /[Ì€-Í¯]/ after a re-encode. Escapes only, in there.
+    # A raw non-ASCII character inside a character class is how /[\u0300-\u036f]/ became the
+    # invalid range /[Ì€-Í¯]/ after a re-encode. Em dashes in comments are fine; this is narrow.
     for cls in re.findall(r"\[(?:[^\]\\\n]|\\.)*\]", js):
         bad = [c for c in cls if not c.isascii()]
         if bad:
@@ -874,6 +894,23 @@ def check_js(js: str) -> str:
                 "Write them as \\uXXXX escapes — a re-encode turns them into an invalid range, "
                 "which is a parse-time error that silently disables the whole script."
             )
+
+    # node parses with --check. bun does NOT: it ignores the unknown flag and *executes* the file,
+    # so `bun --check` on this script would run it headless and fail on a missing DOM, reporting a
+    # syntax error that is not there. `bun build --no-bundle` parses without executing.
+    for exe, args in (("node", ["--check"]), ("bun", ["build", "--no-bundle"])):
+        path = shutil.which(exe)
+        if not path:
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete_on_close=False) as fh:
+            fh.write(js)
+            fh.close()
+            r = subprocess.run([path, *args, fh.name], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise SystemExit(f"inlined JS failed to parse ({exe}):\n" + (r.stderr or r.stdout))
+        return js
+
+    print("  (no node or bun on PATH — ran the character-class guard only)")
     return js
 
 

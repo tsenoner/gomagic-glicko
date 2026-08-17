@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["matplotlib"]
+# dependencies = ["matplotlib>=3.8"]
 # ///
 """
 How many attempts does it take to *measure* a puzzle's difficulty?

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["selectolax"]
+# dependencies = ["selectolax>=0.3.21"]
 # ///
 """
 Parse Go Magic's public Skill Tree into a structured inventory.
