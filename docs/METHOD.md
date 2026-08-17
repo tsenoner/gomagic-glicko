@@ -128,7 +128,7 @@ repeatedly:
 | the static 11-level difficulty table | **not backed.** The snapshot contains the word "difficulty" zero times |
 | the lives mechanic (section 4) | **not backed** — from other, un-snapshotted pages |
 | the Go Diagnostics "confidence range" quote (section 7) | **not backed** — same |
-| the Lichess constants in `glicko2.py` | **not verified.** Quoted from `lila`'s puzzle-rating code from memory, with no pinned commit or URL. Nothing in the simulation depends on them being exactly right |
+| the Lichess constants in `glicko2.py` | **verified against source**, with the citations and three corrections in section 4 |
 
 ### Map
 
@@ -296,8 +296,22 @@ day one.
 
 That is the theory. Section 7 tests it and finds RD is not trustworthy for this job on gated data.
 
-Lichess rates its puzzles this way — puzzle as competitor, Glicko-2 — which is the existence proof
-that the approach survives production, and the source of the non-Glickman details in section 4.
+**Neither half of this is novel, and it is worth knowing who has already shipped which half.**
+
+Lichess rates its puzzles exactly this way, and says so in the code rather than leaving it to be
+inferred — `PuzzleFinisher.scala` reads *"for rating computation, we treat the solve as a game where
+the player is white and the puzzle is black"*. That is the existence proof for puzzle-as-competitor,
+and the source of the non-Glickman details in section 4.
+
+For Go specifically, the precedent is **OGS (online-go.com), which has rated Go players with
+Glicko-2 since 2017**, replacing an EGF Elo-based system. So the scale, the rank mapping and the
+kyu/dan population this document assumes are not hypothetical for Go — the largest Go server
+already runs on them.
+
+Which means the thing proposed here is a *join*, not an invention: Lichess rates puzzles with
+Glicko-2, OGS rates Go players with Glicko-2, and nobody has put the two on one scale so that a Go
+puzzle's difficulty is denominated in the same units as a Go player's rank. That is the whole idea,
+and both halves are load-bearing in production somewhere already.
 
 ### The three side by side
 
@@ -585,6 +599,12 @@ the branch, because `replay` calls `play()` per attempt, so every update has exa
 Anyone taking this to production should decide deliberately whether puzzles get rating periods at
 all, or only ever update when attempted.
 
+Lichess's answer is to make the decay continuous and calibrated rather than per-nominal-period:
+`periodsPerDay = 0.21436`, *"chosen so a typical player's RD goes from 60 -> 110 in 1 year"*
+(section 4). Note what that target is calibrated against — *player* drift, which is the quantity a
+puzzle does not have. Borrowing the mechanism without re-deriving the target would inflate puzzle
+uncertainty on a schedule fitted to how quickly humans get better at chess.
+
 ### The saturation path: a 6,447-point gap
 
 ```python
@@ -611,6 +631,12 @@ because every subsequent attempt against a normal opponent would also saturate a
 away. **This was a bug found and fixed during review.** `tests/test_glicko2.py` sends a
 7950 / 350 / 0.09 competitor to a loss against 1500 / 45 and pins the result at 7250.52 / RD
 350.35, with the game counted.
+
+Worth noting how Lichess sidesteps this entirely: it clamps ratings to `[400, 4000]`
+(section 4), so the widest gap it can ever construct is 3,600 points — well under the ~6,447 needed
+to saturate. Bounding the ratings bounds the gap, which is the cheaper defence of the two. Taking
+the limit is still the right behaviour for an unbounded implementation, and a rating clamp is worth
+adding on top rather than instead.
 
 ### play(): both sides update against the other's pre-update state
 
@@ -729,6 +755,54 @@ short of the ~4,810 games needed to reach the RD floor. Every number in sections
 identical with all four clamps removed. They are here because a production deployment needs them,
 not because the experiment does.
 
+### Where those constants actually come from
+
+An earlier version of this document said the constants above were quoted from memory with no
+pinned reference, and asked you to treat them as plausible rather than verified. They have since
+been checked against the source. All six are real:
+
+| this repo | value | in Lichess |
+|---|---|---|
+| `MIN_DEVIATION` | 45 | `lila` `modules/rating/src/main/Glicko.scala:46`, `val minDeviation = 45` |
+| `MAX_DEVIATION` | 500 | same file `:49`, `val maxDeviation = 500d` |
+| `MAX_VOLATILITY` | 0.1 | `:52`, `val maxVolatility = 0.1d` |
+| `DEFAULT_VOL` | 0.09 | `:53`, `val defaultVolatility = 0.09d` |
+| `MAX_RATING_DELTA` | 700 | `:69`, `val maxRatingDelta = 700` |
+| `TAU` | 0.75 | `scalachess` `rating/.../glicko/model.scala:46`, `Tau.default = 0.75d` |
+
+One structural correction worth having: **the Glicko-2 arithmetic is not in lila at all.** lila
+imports `GlickoCalculator` from `chess.rating.glicko` — the separate `scalachess` library — and
+supplies only configuration. That is where `TAU` lives, and lila takes the default by not
+overriding it. `scalachess` also hardcodes `MULTIPLIER = 173.7178`, the constant this repo now
+writes as the exact `400/ln(10)`.
+
+`lila/modules/puzzle/src/main/PuzzleFinisher.scala` confirms the premise of section 2 in so many
+words — *"for rating computation, we treat the solve as a game where the player is white and the
+puzzle is black"* — so puzzle-as-competitor is production behaviour, not an analogy invented here.
+
+**Three places this repo diverges, and the second is the interesting one.**
+
+**`DEFAULT_RD` is Glickman's 350, not Lichess's.** lila's `default` is
+`new Glicko(1500d, maxDeviation, defaultVolatility)` — a fresh competitor starts at RD **500**, the
+ceiling. So this repo mixes the paper's starting deviation with Lichess's clamps. The consequence
+is real but small in one direction: a fresh puzzle at RD 500 moves faster on its first attempts
+than one at 350, so this repo's puzzles converge slightly more slowly than lila's would. (lila also
+carries a `defaultManagedPuzzle` at `Glicko(800d, 400d, …)` for its own managed cases.)
+
+**lila clamps ratings themselves; this repo does not.** `Glicko.scala` sets
+`minRating = IntRating(400)` and `maxRating = IntRating(4000)`. That has a neat consequence for the
+saturation path in section 3: a 3,600-point maximum gap is comfortably *below* the ~6,447 points
+where the expected score rounds to exactly 1.0, so **lila cannot reach that branch at all.** It is
+structurally immune to the bug this repo had to fix, because bounding the ratings bounds the gap.
+Adding a rating clamp would be the cheaper defence of the two.
+
+**lila's rating periods are time-based and calibrated,** which is the concrete answer to the
+tension section 3 raises about inflating a puzzle's uncertainty because the calendar advanced. It
+sets `periodsPerDay = RatingPeriodsPerDay(0.21436d)` with the comment *"chosen so a typical
+player's RD goes from 60 -> 110 in 1 year"*. So idle decay is real in production, but tuned to a
+stated target rather than applied per nominal period — and note it is calibrated against *player*
+drift, which is exactly the quantity section 3 argues a puzzle does not have.
+
 ### What counts as an observation: first attempts only
 
 The rule is one observation per player per puzzle — the first — and never a retry.
@@ -829,6 +903,31 @@ the bias in proportion to the weight rather than removing it. The durable fix is
 stored next to every attempt, which lets a later joint fit carry an explicit per-context difficulty
 offset — the same machinery as `batch_fit.py` with one more parameter. Damping is the online-path
 approximation of that; the flag is the thing you cannot add retroactively.
+
+**Lichess's version of this is richer than the single `weight` here, and the difference is
+instructive.** `PuzzleFinisher.scala` picks the weight from the puzzle's *theme* and from the
+*outcome*, not from the context alone:
+
+| lila's case | weight on a win | weight on a loss |
+|---|---|---|
+| `PuzzleTheme.mix` (no theme announced) | 1.0 | 1.0 |
+| `isObvious(theme)` | 0.1 | 0.4 |
+| `isHinting(theme)` | 0.2 | 0.7 |
+| any other named theme | 0.7 | 0.8 |
+
+Two things to take from that. First, it settles the argument this subsection makes: Lichess ships
+an explicit `isHinting(theme)` branch, so "naming the theme is a hint that must be discounted" is
+production practice rather than a conjecture — and a skill-tree node label is a theme name by any
+other word.
+
+Second, and this repo does *not* model it: **the damping is asymmetric.** A hinted win is
+discounted hard (0.2) while a hinted loss is kept nearly intact (0.7). The logic is that the hint
+helps you succeed but barely helps you fail, so a solve under a hint is weak evidence about the
+position while a failure under a hint is strong evidence. `_lerp` applies one symmetric `weight` to
+both outcomes, which is the coarser choice. Anyone implementing this on tree traffic should split
+it — and note the asymmetry pushes in the direction that matters here, since discounting hinted
+wins more than hinted losses raises the fitted difficulty of tree-served puzzles and partly offsets
+the downward bias described under "first attempts only".
 
 Two honest notes on the code. The sweep does not use damping at all, so the gated regime in section
 7 is modelled as gated *but not hinted*: it pays the restriction-of-range penalty and gets the full
@@ -1618,7 +1717,14 @@ the gated curve declines rather than flattening, which is the claim an earlier d
 - **attempt slot** — one (puzzle, position-in-tree) opportunity; 4,790 to complete the tree.
 - **lives** — the one or two tries granted per puzzle; a retried solve earns no coins or XP.
 - **Go Diagnostics** — Go Magic's ungated blind test at `/go-tests/`, in beta.
-- **lila** — the Lichess server codebase, source of the production constants used here.
+- **OGS** — online-go.com, the largest Go server; has rated players with Glicko-2 since 2017.
+- **lila** — the Lichess server codebase (Scala 3), source of the production *constants* used here.
+  Chess only; unrelated to any Go engine.
+- **scalachess** — the library lila imports the Glicko-2 *arithmetic* from, as
+  `chess.rating.glicko`. Where `TAU` actually lives.
+- **KataGo / KaTrain** — a C++ neural-net Go engine and a Python/Kivy GUI over its analysis
+  protocol. Listed here only because they are easy to assume are connected to lila: they share no
+  code or lineage with it, and nothing in this document depends on them.
 
 ### Rating systems
 
@@ -1721,3 +1827,14 @@ the gated curve declines rather than flattening, which is the claim an earlier d
 - Glickman's earlier Glicko paper, for where RD comes from and why.
 - Any introduction to item response theory for the Rasch model, test equating, and common-item
   linking designs — the vocabulary sections 6 and 7 borrow.
+
+The Lichess sources cited in section 4, so the constants can be re-checked rather than trusted:
+
+- [`lila/modules/rating/src/main/Glicko.scala`](https://github.com/lichess-org/lila/blob/master/modules/rating/src/main/Glicko.scala)
+  — the clamps, the defaults, `maxRatingDelta`, `periodsPerDay`.
+- [`lila/modules/puzzle/src/main/PuzzleFinisher.scala`](https://github.com/lichess-org/lila/blob/master/modules/puzzle/src/main/PuzzleFinisher.scala)
+  — puzzle-as-competitor, and the theme-and-outcome damping table.
+- [`scalachess/rating/src/main/scala/glicko`](https://github.com/lichess-org/scalachess/tree/master/rating/src/main/scala/glicko)
+  — the actual Glicko-2 implementation, `Tau.default`, and `MULTIPLIER`.
+- [OGS's 2017 move to Glicko-2](https://forums.online-go.com/t/ogs-has-a-new-glicko-2-based-rating-system-2017/13058)
+  — the Go-side precedent.

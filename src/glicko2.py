@@ -2,7 +2,13 @@
 Glicko-2, as Glickman specifies it, plus the production details Lichess added.
 
 Reference: Mark E. Glickman, "Example of the Glicko-2 system" (glicko.net/glicko/glicko2.pdf).
-The Lichess-specific parts are noted where they appear and come from `lila`'s puzzle rating code.
+
+The Lichess-specific parts are noted where they appear. They come from two repositories, not one:
+the clamps below are lila's `modules/rating/src/main/Glicko.scala`, while the Glicko-2 arithmetic
+Lichess actually runs lives in the separate `scalachess` library as `chess.rating.glicko` — which
+is where TAU's 0.75 comes from (`Tau.default`, which lila accepts by not overriding it).
+See docs/METHOD.md section 4 for the line-by-line citations and the three places this file
+deliberately or accidentally diverges.
 
 The idea being implemented
 --------------------------
@@ -30,11 +36,13 @@ DEFAULT_VOL = 0.09
 TAU = 0.75                # system constant: how fast volatility moves. Glickman suggests 0.3–1.2
 EPSILON = 1e-6            # convergence tolerance for the volatility solver
 
-# --- Lichess production clamps (lila: PuzzleFinisher / glicko config) --------------------
-MIN_DEVIATION = 45.0      # a rating never claims to be more certain than this
-MAX_DEVIATION = 500.0
-MAX_VOLATILITY = 0.1
-MAX_RATING_DELTA = 700.0  # a single game can never move a rating further than this
+# --- Lichess production clamps (lila: modules/rating/src/main/Glicko.scala) ---------------
+MIN_DEVIATION = 45.0      # a rating never claims to be more certain than this  (:46)
+MAX_DEVIATION = 500.0     # (:49) — and lila starts competitors here, not at DEFAULT_RD
+MAX_VOLATILITY = 0.1      # (:52)
+MAX_RATING_DELTA = 700.0  # a single game can never move a rating further than this  (:69)
+# Not mirrored here: lila also clamps the rating itself to [400, 4000], which caps the widest
+# reachable gap at 3,600 points and so makes the saturation branch in `update` unreachable.
 
 
 @dataclass

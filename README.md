@@ -223,11 +223,20 @@ The committed snapshot `data/skilltree-2026-08-16.html` backs the section-1 inve
 **10,160 puzzles** figure, and the 5-puzzles-per-quiz multiplier (*"a quiz — a short series of 5
 puzzles"*). It does **not** contain the word "difficulty", so the 11-level table, the lives
 mechanic in section 6, and the Go Diagnostics quote in section 5 come from other pages of
-gomagic.org that are not snapshotted here and cannot be checked offline. The Lichess constants in
-`glicko2.py` (`MIN_DEVIATION` 45, `MAX_DEVIATION` 500, `MAX_VOLATILITY` 0.1, `MAX_RATING_DELTA`
-700, `TAU` 0.75) are quoted from `lila`'s puzzle-rating code from memory, with no pinned reference
-— treat them as plausible production values, not verified ones. Nothing in the simulation depends
-on them being exactly right.
+gomagic.org that are not snapshotted here and cannot be checked offline.
+
+The Lichess constants in `glicko2.py` (`MIN_DEVIATION` 45, `MAX_DEVIATION` 500, `MAX_VOLATILITY`
+0.1, `MAX_RATING_DELTA` 700, `TAU` 0.75) **have been checked against the source** and all six are
+real — five in lila's `modules/rating/src/main/Glicko.scala`, and `TAU` in the separate `scalachess`
+library, which is where Lichess's Glicko-2 arithmetic actually lives. lila's
+`PuzzleFinisher.scala` also confirms the premise verbatim: *"we treat the solve as a game where the
+player is white and the puzzle is black"*.
+
+Three divergences are worth knowing, and [`docs/METHOD.md`](docs/METHOD.md) section 4 has the
+line-by-line citations: `DEFAULT_RD` 350 is Glickman's, where lila starts competitors at 500; lila
+clamps ratings to `[400, 4000]`, which this repo does not, and that clamp is what makes lila immune
+to the saturation branch; and lila's hint damping is asymmetric and theme-based (a hinted win is
+weighted 0.2, a hinted loss 0.7) where `play()` takes one symmetric `weight`.
 
 ---
 
