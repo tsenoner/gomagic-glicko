@@ -4,3 +4,11 @@ __pycache__/
 out/*.json
 out/*.html
 !out/recovery.png
+
+# Third-party problem content fetched by src/build_collection.py. NEVER commit this: the sources
+# are CC BY-NC-SA / OPL and cannot be redistributed under this repo's MIT licence.
+out/collection/
+
+# The one-page deliverable is committed, like recovery.png; any other rendered PDF is scratch.
+out/*.pdf
+!out/onepager.pdf

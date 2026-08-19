@@ -53,7 +53,7 @@ APP = ASSETS / "app.js"
 # The header diagram: the document's own central finding, drawn. Five puzzles at their true
 # spacing, and the same five as gated data reports them — compressed toward the middle by the
 # slope the experiment measures.
-COMPRESSION_SLOPE = 2.35
+COMPRESSION_SLOPE = 2.36
 
 
 def motif(width: int = 660, left: int = 96, span: int = 520) -> str:

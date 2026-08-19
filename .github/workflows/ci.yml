@@ -40,6 +40,15 @@ jobs:
         # error in the script silently disables the whole page, so it must fail the build.
         run: ./docs/build.py --out /tmp/method.html
 
+      # The PDF step needs a browser, which CI does not have; --html-only exercises everything
+      # up to that point, including that the committed chart is where the script expects it.
+      - name: Build the one-page summary
+        run: ./docs/onepager.py --html-only --out /tmp/onepager.pdf
+
+      # --list reads only the committed manifest, so it needs no network and no fetched content.
+      - name: Validate the problem-source manifest
+        run: ./src/build_collection.py --list
+
       - name: Smoke-run the experiments
         run: |
           ./src/recovery.py --quick --out /tmp/recovery.png

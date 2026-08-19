@@ -1,0 +1,82 @@
+{
+  "_about": "Index of Go problem collections, with verified licences. Metadata only: this file contains no problem content. Compiled 2026-08-18 by a multi-agent survey with an adversarial licence-verification pass; see docs/PROBLEM-SOURCES.md for method and caveats.",
+  "_warning": "A public-domain POSITION does not make a machine-readable FILE of it public domain. Every convenient SGF transcription of the classics carries either no licence, a code-only licence, or added solution trees that are new copyright. Verify before use.",
+  "_grid": "the (phase x concept) grid lives in data/taxonomy_map.json under 'grid' — one copy, so the two files cannot drift",
+  "reusable": [
+    {
+      "id": "ggg-weekly",
+      "name": "Go Game Guru weekly go problems",
+      "url": "https://github.com/gogameguru/go-problems",
+      "problems": 422,
+      "format": "SGF FF[4], annotated solution trees with wrong-answer branches",
+      "difficulty": {"scheme": "3 bands", "values": ["easy", "intermediate", "hard"], "counts": {"easy": 140, "intermediate": 140, "hard": 140, "other": 2}, "note": "repo README concedes grading is 'fairly subjective'"},
+      "licence": {"spdx": "CC-BY-NC-SA-3.0", "github_classifier": "NOASSERTION", "note": "site's own grant was 3.0 (verified via Wayback 2012-01-18 footer/ToS); repo LICENSE ships the 4.0 legal code"},
+      "reusable": "yes-open-noncommercial",
+      "blocks": ["commercial use", "relicensing: ShareAlike is incompatible with this repo's MIT licence"],
+      "fetch": {"branch": "master", "path": "weekly-go-problems", "verified": "2026-08-18, 422 .sgf present"}
+    },
+    {
+      "id": "senseis-wiki",
+      "name": "Sensei's Library wiki dump",
+      "url": "https://senseis.xmp.net/files/snapshots/wiki-dump.sql.gz",
+      "problems": 2857,
+      "format": "SQL dump -> wiki ASCII diagrams; full snapshot tarballs also contain SGF",
+      "difficulty": {"scheme": "enum", "values": ["n/a", "Introductory", "Beginner", "Intermediate", "Advanced", "Expert"], "counts": {"Advanced": 1129, "n/a": 1012, "Beginner": 377, "Intermediate": 248, "Expert": 79, "Introductory": 12}, "note": "richest structured difficulty metadata in any open Go corpus"},
+      "licence": {"spdx": "OpenContent-OPL-1.0", "note": "OPL s1 forbids charging a fee for network access; OPL s2(b) is copyleft over the whole derivative"},
+      "reusable": "yes-open-copyleft",
+      "blocks": ["paid app: OPL s1", "combining into a non-OPL work: OPL s2(b) is viral"],
+      "caveats": ["1012 of 2857 have difficulty n/a", "only ~137 distinct pages carry any phase tag", "dump rows have variable trailing columns: index from the FRONT (difficulty=field 7, keywords=field 8) or undercount by ~30%"]
+    },
+    {
+      "id": "ndl-gokyo-shumyo",
+      "name": "Gokyo Shumyo, 1912 edition (National Diet Library)",
+      "url": "https://dl.ndl.go.jp/api/iiif/912852/manifest.json",
+      "problems": 520,
+      "format": "IIIF page scans. NOT machine-readable; re-keying required",
+      "difficulty": {"scheme": "none", "note": "seven classical topical sections, ungraded: life 103, death 71, ko 90, capturing races 96, chasing 40, connect-underneath 74, wedge/cut/ladder 46"},
+      "licence": {"spdx": "PDM-1.0", "note": "Public Domain Mark read from the IIIF manifest access-restrictions field; item HTML and item API both fail, the manifest endpoint works"},
+      "reusable": "yes-public-domain",
+      "blocks": [],
+      "caveats": ["scans, not SGF", "re-keying from the scan is the only clean-room route to licence-free SGF of these positions"]
+    },
+    {
+      "id": "ndl-igo-hatsuyoron",
+      "name": "Igo Hatsuyoron, 1914 edition (National Diet Library)",
+      "url": "https://dl.ndl.go.jp/api/iiif/1183163/manifest.json",
+      "problems": 183,
+      "format": "IIIF page scans",
+      "difficulty": {"scheme": "none", "note": "reputationally the hardest classical collection"},
+      "licence": {"spdx": "PDM-1.0", "note": "same verification method as Gokyo Shumyo"},
+      "reusable": "yes-public-domain",
+      "blocks": [],
+      "caveats": ["scans, not SGF"]
+    },
+    {
+      "id": "lichess-puzzles",
+      "name": "Lichess puzzle database",
+      "url": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+      "problems": 6100960,
+      "format": "Zstd CSV",
+      "difficulty": {"scheme": "glicko2", "fields": ["Rating", "RatingDeviation", "NbPlays", "Themes"], "stats": {"rating_mean": 1471.05, "rating_sd": 547.62, "rd_mean": 86.69, "nbplays_mean": 1722}},
+      "licence": {"spdx": "CC0-1.0", "note": "verified verbatim on the download page"},
+      "reusable": "yes-open",
+      "blocks": ["IT IS CHESS. Validation/calibration only. Must not enter a Go catalogue."],
+      "why_here": "the only freely reusable attempt-derived puzzle-rating dataset in existence, and the exact methodological precedent for this project"
+    }
+  ],
+  "not_reusable": [
+    {"id": "goproblems", "name": "goproblems.com", "problems": 48966, "attempts": 76500000, "why": "explicit copyright retention on downloads; robots.txt disallows /api/", "rating_method": "Elo, per-problem K decaying ~127 -> ~10 with attempts", "note": "the single most important precedent; do not scrape"},
+    {"id": "tsumego-hero", "name": "Tsumego Hero", "problems": 11721, "why": "composer.json declares proprietary; includes digitisations of in-copyright books", "rating_method": "EGF GoR, both sides updated per attempt, each misplay a separate loss, admin min/max clamps"},
+    {"id": "101weiqi", "name": "101weiqi.com", "problems": 187587, "why": "no licence grant anywhere; all rights reserved, Shanghai Pangqing", "rating_method": "problem difficulty on the same axis as player rating; 30-bin pass/fail histogram by solver rating; update rule undocumented"},
+    {"id": "ogs-puzzles", "name": "OGS puzzles", "problems": 58967, "why": "user-uploaded, no per-puzzle licence field, many re-uploads of in-copyright books; ToS page is a JS shell", "rating_method": "NONE - author picks a rank from a dropdown; attempt_count/solved_count stored and never used"},
+    {"id": "sanderland-tsumego", "name": "sanderland/tsumego (Ten Thousand Tsumego)", "problems": 12640, "why": "TRAP: MIT-looking LICENSE covers only 'the Software'; GitHub reports NOASSERTION. Directories are named after in-print books"},
+    {"id": "101books", "name": "101books.github.io", "problems": 23536, "why": "TRAP: scraped from 101weiqi through a Tor proxy with exit-node rotation to evade IP bans. No licence. Do not use or mirror"},
+    {"id": "tasuki", "name": "tsumego.tasuki.org", "problems": 3603, "why": "no licence; 3 of 6 books are in-copyright. The site's own FAQ says it cannot tell whether it is legal"},
+    {"id": "seon82-tasuki2sgf", "name": "Seon82/tasuki2sgf", "why": "TRAP: no LICENSE, and derived from tasuki's uncleared corpus. The most convenient SGF route to the classics, and not safe"},
+    {"id": "ugo-net", "name": "u-go.net classical collections", "problems": 1909, "why": "the only rights language is a personal permission running TO the maintainer, not downstream; site is explicitly non-commercial. Added solution trees are new copyright"},
+    {"id": "shape-up", "name": "Shape Up! (Matthews & Kim)", "why": "UNCLEAR AT SOURCE: the CC BY-SA 4.0 page was added by a repackager, not the authors. Get written permission before use"},
+    {"id": "kogos-joseki", "name": "Kogo's Joseki Dictionary", "why": "redistributed for 20 years with no licence statement of any kind. 'Everybody does it' is not a licence"},
+    {"id": "gotools", "name": "GoTools (Thomas Wolf)", "problems": 40000, "why": "primary page 403s; mirror has no licence text. Also solver-effort labels, not human-calibrated"},
+    {"id": "knowledgepit", "name": "IEEE BigData 2024 Cup data", "problems": 2282, "why": "explicitly prohibits redistribution. Use the CC0 Lichess dump instead"}
+  ]
+}

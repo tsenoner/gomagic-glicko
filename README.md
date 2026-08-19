@@ -13,8 +13,14 @@ database. This repo asks what it would take to replace that judgement with a mea
 
 The short answer: skill-tree gating hurts, but far less than the first pass concluded. At useful
 volume most of the penalty comes from *estimating online*, not from the shape of the data — a
-one-off joint refit of the same log cuts recovery error by 63%. What survives is a smaller,
+one-off joint refit of the same log cuts recovery error by 61%. What survives is a smaller,
 real penalty at low volume, which no choice of estimator fixes.
+
+Every figure below is a mean over **10 planted worlds**, every primary error figure carries a
+**95% confidence interval** (the secondary columns — slope, ρ, ±100 — are plain means), and every
+regime-vs-regime claim is a *paired* contrast on the same worlds — with one marked exception, the
+exploratory 640–1,280-attempt check in section 3, which is a 2–3-rep directional probe and says
+so. Nothing here rests on a difference the reruns cannot resolve.
 
 Nothing here uses private data. The skill-tree structure is parsed from a public page; everything
 else is simulated.
@@ -55,6 +61,45 @@ fitted scale is already right, 2.6 means the fitted spread is 2.6× too narrow.
 
 ---
 
+## The scale, and what the simulated world contains
+
+Every number below is in rating points, so the conversion to ranks and the range of the planted
+world both have to be stated before any of them mean anything. `describe_scale()` prints this
+block at the top of every run, and the figure caption repeats it:
+
+|                          |                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| rank ↔ rating            | **1 rank = 100 rating points, 1d = 2100** (so 1k = 2000, 20k = 100), the EGF nominal convention |
+| planted truth            | **N(1500, 467)** — the *same* distribution for puzzle difficulty and for player skill        |
+| 95% of the planted mass  | 567 … 2433 = **15k … 4d**                                                                    |
+| 99.7% (±3 sd)            | 100 … 2900 = **20k … 9d**, centred on 1500 = **6k**                                     |
+| the no-information ceiling | **RMSE 467.** An estimator that guesses 1500 for every puzzle scores exactly the population sd |
+
+That last row is the one to keep in mind: an RMSE of 440 is not "somewhat bad", it is **nothing
+learned**. And the ±100 target on the plot is one rank.
+
+**Two honest mismatches with the real catalogue**, both flagged in `src/recovery.py`:
+
+- Go Magic's tree spans **30k–1d**, but the planted population runs to 9d and stops at 20k. About
+  **10% of planted puzzles come out above 1d** — harder than any puzzle Go Magic actually has —
+  and nothing is planted in the 30k–20k range where the tree's first tier lives.
+- The 100-points-per-rank map is **linear, and real Go ranks are not.** This is the EGF *label*
+  convention, which is linear by decree. The win-probability meaning is not: EGF's own model
+  carries `a_eff = (3300 − r)/7`, which coincides with the 400-point Elo scale used here only near
+  the 1k/1d boundary. OGS — the one production Go server running Glicko-2 — maps rank
+  exponentially instead (`rating = 525·exp(rank_idx/23.15)`), making a rank worth ~85 points at 1d,
+  ~55 at 10k and ~36 at 20k, with the whole 30k–1d span about **1,400 points rather than 3,000**.
+
+  **So "±100 points ≈ one rank" is sound at dan level and generous below it** — under the OGS map
+  the same 100 points is nearer *three* ranks at 20k, which is where the tree's first tier sits.
+  Error figures quoted in ranks should be read as a dan-calibrated lower bound.
+
+Neither affects the *estimator* — it never sees a rank — but both mean the simulated population is
+a stylised Go population rather than Go Magic's. [`docs/RESEARCH.md`](docs/RESEARCH.md) §1 has the
+three competing mappings, their sources, and the places the literature genuinely disagrees.
+
+---
+
 ## Findings
 
 ### 1. Their Skill Tree, from the public page
@@ -71,6 +116,28 @@ fitted scale is already right, 2.6 means the fitted spread is 2.6× too narrow.
 
 That 3×5 tag grid is already the vocabulary a difficulty model, or a mistake classifier, would
 target. It does not need inventing.
+
+### 1b. This is not a new idea, and the honest version is better
+
+Deriving Go puzzle difficulty from attempt data has been production practice since roughly 1999.
+**goproblems.com** rates problems by Elo with a per-problem K that decays from ~127 to ~10 as
+attempts accumulate; **Tsumego Hero** uses EGF GoR and updates both sides on every attempt;
+**101weiqi** puts problem difficulty on the same axis as player rating. Lichess does the exact
+thing this repo simulates — a solve attempt treated as a Glicko-2 game between player and puzzle —
+across ~6.1M puzzles, published CC0.
+
+What is left that is genuinely open: **Glicko-2 rather than Elo/GoR** (neither Go implementation
+carries an explicit rating deviation, and goproblems' decaying K is an RD approximated badly);
+**anchoring**, which is unsolved in the wild and which both mature systems patch with clamps;
+**doing it under a gated tree** with a lives mechanic censoring the log; and **per-cell estimation
+on a 3x5 concept grid**, which nobody does.
+
+And the strongest evidence anyone wants it: OGS has had an open issue for *Glicko rating for
+puzzles* since February 2022 — motivated by puzzles having "static, often outdated ratings" —
+while already recording the attempt counts it would need.
+
+[`docs/PROBLEM-SOURCES.md`](docs/PROBLEM-SOURCES.md) has the survey, the licence audit, and the
+taxonomy mapping.
 
 ### 2. The estimator works, and it is correctly implemented
 
@@ -89,61 +156,95 @@ clamps, the empty-rating-period path, the saturated-expectation path, and the da
 A skill tree does not serve random puzzles. Progression is gated, so players only meet puzzles
 near their own level and the attempt matrix is *banded* rather than dense.
 
-Online Glicko-2, as a live system would run it. 300 puzzles, 3,000 players, 2 reps:
+Online Glicko-2, as a live system would run it. 300 puzzles, 3,000 players, 10 reps:
 
-| attempts/puzzle | random RMSE(off) | random ρ | gated RMSE(off) | gated ρ | gated slope |
-| --------------- | ---------------- | --------- | --------------- | -------- | ----------- |
-| 10              | 247              | 0.88      | 404             | 0.41     | 1.17        |
-| 40              | 164              | 0.97      | 349             | 0.78     | 2.63        |
-| 160             | 104              | 0.99      | 279             | 0.95     | 2.35        |
+| attempts/puzzle | random RMSE(off)      | random ρ | gated RMSE(off)       | gated ρ | gated slope | paired gap        |
+| --------------- | --------------------- | --------- | --------------------- | -------- | ----------- | ----------------- |
+| 10              | 249.5 ± 4.8 | 0.89      | 408.2 ± 5.1 | 0.44     | 1.26        | **+158.6 ± 4.3** |
+| 40              | 166.8 ± 4.1 | 0.97      | 355.2 ± 6.1 | 0.78     | 2.64        | **+188.4 ± 5.1** |
+| 160             | 106.5 ± 3.4 | 0.99      | 287.1 ± 7.4 | 0.94     | 2.36        | **+180.6 ± 8.9** |
+
+The last column is the paired contrast — the same planted worlds, with identically seeded log
+streams, in both regimes — which is the *correct* interval for a gap, so read it rather than eyeballing the
+overlap of the two per-regime intervals. It is not automatically the tighter one: pairing buys
+1.4–1.6× at 10 and 40 attempts, and at 160 it is slightly **wider** than an independent-samples
+combination (±8.9 against ≈±8.1), because by then the two regimes respond differently enough to
+the same planted world that differencing stops cancelling. Every gap in this repo is significant
+at 95% either way.
 
 Gated recovery error does **not** plateau — it falls steadily, by roughly 28 points per doubling
 of attempts across the full 3→160 sweep, against 39 points per doubling for random pairing. It is
-slower convergence, not a wall. But because it converges more slowly, the *gap* widens with
-volume rather than closing: gated is 1.6× worse at 10 attempts per puzzle, 2.1× at 40, and 2.7× at
-160. Buying more traffic does not buy your way out of gating.
+slower convergence, not a wall. But because it converges more slowly, the *ratio* widens with
+volume: gated is 1.6× worse at 10 attempts per puzzle, 2.1× at 40, and 2.7× at 160. Buying more
+traffic does not buy your way out of gating.
 
 The interesting part is *how* it is worse. At 160 attempts per puzzle the gated estimator has
-essentially learned the ordering — **ρ 0.95** — while still sitting at 279 RMSE with a **slope of
-2.35**. It knows which puzzle is harder and understates by how much, by a factor of two. That is
+essentially learned the ordering — **ρ 0.94** — while still sitting at 287 RMSE with a **slope of
+2.36**. It knows which puzzle is harder and understates by how much, by a factor of two. That is
 scale compression from weak linkage, not noise, and it is the specific thing to fix.
+
+**A trap for anyone extending the sweep.** The obvious next question is what happens past 160, and
+running it naively suggests the penalty evaporates — gated reaches 93.5 RMSE at 1,280 attempts
+against random's 64.9, a mere 1.4×. That is an artefact. `make_log` falls back to "the nearest N
+players" when the ±300 band cannot supply N, and past 160 attempts that fallback fires constantly
+— hardest of all on the tail puzzles, handing them precisely the wide-range comparisons gating is
+supposed to deny. Scale the population so the band stays a band and the effect disappears:
+
+| attempts | players | fallback rate | random | gated | ratio          |
+| -------- | ------- | ------------- | ------ | ----- | -------------- |
+| 640      | 3,000   | 16%           | 73.8   | 176.5 | 2.39×         |
+| 640      | 30,000  | **0%**  | 102.9  | 286.1 | **2.78×** |
+| 1,280    | 3,000   | 58%           | 64.9   | 93.5  | 1.44×         |
+| 1,280    | 30,000  | **2%**  | 91.4   | 253.9 | **2.78×** |
+
+The apparent convergence tracks the fallback rate exactly. With gating intact the penalty is
+**flat at ~2.8× out to 1,280 attempts per puzzle**, which strengthens rather than weakens the
+conclusion above. (Compare within rows only: more players means fewer attempts each, so absolute
+values shift. And these four rows are the one exception to the 10-worlds-with-intervals rule
+stated at the top: they are a 2–3-rep directional check, deliberately not promoted into the
+headline tables.) `--sweep` exists so this is checkable, and its `--help` carries the warning.
 
 ### 4. Most of that is the online estimator, not the data
 
 `src/batch_fit.py` refits **the identical attempt log** — one list, handed to both estimators — as
 a joint Rasch MAP fit. Both files seed the world and the log the same way, so the `online` rows
 below are the *same runs* as the section-3 table, digit for digit, and the two sections are
-directly comparable. 300 puzzles, 3,000 players, 2 reps:
+directly comparable. 300 puzzles, 3,000 players, 10 reps:
 
-| attempts | regime | estimator | RMSE(off)     | RMSE(aff) | slope | ρ   |
-| -------- | ------ | --------- | ------------- | --------- | ----- | ---- |
-| 10       | random | online    | 247           | 212       | 1.48  | 0.88 |
-| 10       | random | batch     | 237           | 212       | 1.37  | 0.88 |
-| 10       | gated  | online    | 404           | 402       | 1.17  | 0.41 |
-| 10       | gated  | batch     | **383** | 380       | 1.27  | 0.50 |
-| 40       | random | online    | 164           | 116       | 1.37  | 0.97 |
-| 40       | random | batch     | 129           | 105       | 1.21  | 0.97 |
-| 40       | gated  | online    | 349           | 271       | 2.63  | 0.78 |
-| 40       | gated  | batch     | **241** | 139       | 1.87  | 0.95 |
-| 160      | random | online    | 104           | 76        | 1.20  | 0.99 |
-| 160      | random | batch     | 63            | 51        | 1.09  | 0.99 |
-| 160      | gated  | online    | 279           | 139       | 2.35  | 0.95 |
-| 160      | gated  | batch     | **103** | 39        | 1.28  | 1.00 |
+| attempts | regime | estimator | RMSE(off)             | RMSE(aff) | slope | ρ   | paired batch − online |
+| -------- | ------ | --------- | --------------------- | --------- | ----- | ---- | --------------------- |
+| 10       | random | online    | 249.5 ± 4.8 | 215       | 1.46  | 0.89 |                       |
+| 10       | random | batch     | 237.8 ± 5.1 | 211       | 1.37  | 0.89 | −11.8 ± 1.6  |
+| 10       | gated  | online    | 408.2 ± 5.1 | 406       | 1.26  | 0.44 |                       |
+| 10       | gated  | batch     | **388.1 ± 5.3** | 383 | 1.34  | 0.53 | −20.1 ± 3.2  |
+| 40       | random | online    | 166.8 ± 4.1 | 118       | 1.37  | 0.97 |                       |
+| 40       | random | batch     | 133.9 ± 4.4 | 108       | 1.22  | 0.98 | −32.9 ± 2.7  |
+| 40       | gated  | online    | 355.2 ± 6.1 | 277       | 2.64  | 0.78 |                       |
+| 40       | gated  | batch     | **251.5 ± 7.8** | 145 | 1.92  | 0.95 | −103.7 ± 2.6 |
+| 160      | random | online    | 106.5 ± 3.4 | 77        | 1.20  | 0.99 |                       |
+| 160      | random | batch     | 63.7 ± 3.1  | 52        | 1.09  | 0.99 | −42.8 ± 1.4  |
+| 160      | gated  | online    | 287.1 ± 7.4 | 147       | 2.36  | 0.94 |                       |
+| 160      | gated  | batch     | **111.5 ± 4.0** | 40  | 1.30  | 1.00 | −175.6 ± 6.3 |
 
-Read the last two rows. Under gating at 160 attempts per puzzle, online Glicko sits at 279 RMSE
-with its scale compressed 2.35×; the joint fit on the same log reaches **103 with slope 1.28** — a
-63% cut in error, and most of the scale compression gone too. So the honest split:
+The last column is the tightest interval in the repo, and here the pairing genuinely earns it: the
+two estimators run on *one shared log per rep*, so the contrast is paired twice over — same world,
+same log — and only the estimator differs. That buys 1.3–4.4× over an independent-samples
+combination, against 1.4–1.6× for the regime contrasts in section 3.
+
+Read the last two rows. Under gating at 160 attempts per puzzle, online Glicko sits at 287 RMSE
+with its scale compressed 2.36×; the joint fit on the same log reaches **111.5 with slope 1.30** —
+a 61% cut in error, and most of the scale compression gone too. So the honest split:
 
 - **At low volume the penalty is real and estimator-independent.** At 10 attempts per puzzle the
-  joint fit buys almost nothing (404 → 383) and gated is still ~1.6× worse than random. That is an
-  information limit in the data, and no cleverness recovers it.
+  joint fit buys almost nothing (408 → 388, a 4.9% cut) and gated is still ~1.6× worse than random.
+  That is an information limit in the data, and no cleverness recovers it.
 - **At useful volume the penalty is mostly an artefact of estimating online.** Sequential updates
   are made against opponents whose own ratings are still noise, and under weak linkage that error
   never washes out. A joint fit sees the whole graph at once and does not care.
-- **It does not vanish, though.** At 160 attempts the joint fit is still 103 gated vs 63 random —
-  a residual 1.6× that is a property of the data. Earlier drafts of this README claimed the gap
+- **It does not vanish, though.** At 160 attempts the joint fit is still 111.5 gated vs 63.7 random
+  — a residual 1.75× that is a property of the data. Earlier drafts of this README claimed the gap
   "nearly disappears"; that was an artefact of reading it off the scale-free metric, where gated
-  (39) even beats random (51) because the affine map hands back the compressed scale for free.
+  (40) even beats random (52) because the affine map hands back the compressed scale for free.
 
 **The recommendation this produces is concrete and cheap: for a one-off backfill over an existing
 log, fit jointly. Do not run online Glicko over history and conclude the data is inadequate.**
@@ -154,17 +255,22 @@ Reserve the online estimator for the live path, where it is the right tool.
 Common items served ungated to everyone are the standard psychometric fix for a poorly connected
 design. At 40 attempts per puzzle (`--linking 0.25 0.5 1.0`):
 
-| ungated fraction | RMSE(off) | slope | ρ   |
-| ---------------- | --------- | ----- | ---- |
-| 0%               | 349       | 2.63  | 0.78 |
-| 25%              | 281       | 1.75  | 0.88 |
-| 50%              | 234       | 1.57  | 0.92 |
-| 100%             | 164       | 1.37  | 0.97 |
+| ungated fraction | RMSE(off)             | slope | ρ   | paired vs 0%       |
+| ---------------- | --------------------- | ----- | ---- | ------------------ |
+| 0%               | 355.2 ± 6.1 | 2.64  | 0.78 |                    |
+| 25%              | 297.9 ± 10.9 | 1.85  | 0.87 | −57.2 ± 6.6  |
+| 50%              | 248.6 ± 7.7 | 1.59  | 0.92 | −106.5 ± 5.6 |
+| 100%             | 166.8 ± 4.1 | 1.37  | 0.97 | −188.4 ± 5.1 |
 
 Monotone, with no threshold to exploit, and with diminishing returns: the first 25% of ungated
-traffic buys 68 RMSE points, the next 47, and the top half about 35 per 25%. Most of the scale
-compression goes with it (slope 2.63 → 1.37). The 100% row reproduces the random-pairing row
-exactly (164 / 1.37 / 0.97), which is the consistency check that the gating knob does what it says.
+traffic buys 57 RMSE points, the next 49, and the top half about 41 per 25%. Most of the scale
+compression goes with it (slope 2.64 → 1.37). The 100% row reproduces the random-pairing row
+exactly (166.8 / 1.37 / 0.97), the consistency check that the gating knob does what it says.
+
+At 10 reps even the **10% dose is significant at every volume** — −14.7 ± 7.0 at 10 attempts per
+puzzle, −20.8 ± 5.2 at 40, −28.1 ± 5.7 at 160 — and the benefit grows with volume, because linking
+items carry weak information per attempt that needs traffic to accumulate. An earlier 2-rep reading
+put the low-volume effect inside the noise; it is not.
 
 Next to choosing the right estimator this is second-order — the joint refit is free and buys more
 — but it is the fix that also helps the *live* path, which cannot be batch-fitted. Go Magic
@@ -193,6 +299,51 @@ Three consequences:
 One nice side effect: read-it-out-first discourages careless clicking, so the outcomes carry less
 guessing noise than a typical puzzle app. That helps difficulty estimation.
 
+### 7. Uneven traffic costs as much as gating does, and it wrecks the ordering
+
+Sections 3–5 give every puzzle the *same* number of attempts, which is the one thing a
+prerequisite tree certainly does not do. Everybody meets the first node; only survivors reach the
+last. `--funnel f` makes traffic decay with difficulty — `f` is the hardest puzzle's share of the
+easiest one's attempts — and renormalises so the **mean** attempts per puzzle is unchanged. That
+isolates the *shape* of the traffic from its volume: both columns below are the same 12,000
+attempts, distributed differently.
+
+At `--funnel 0.02` and 40 attempts per puzzle on average, the easiest puzzle gets 159 attempts, the
+median 22, the hardest 3.
+
+| attempts (mean) | regime | flat traffic          | funnelled (0.02)      | paired cost        | ρ flat → funnel |
+| --------------- | ------ | --------------------- | --------------------- | ------------------ | ---------------- |
+| 40              | random | 166.8 ± 4.1 | 216.3 ± 10.0 | **+49.5 ± 7.3** | 0.97 → 0.92     |
+| 40              | gated  | 355.2 ± 6.1 | 386.4 ± 5.5 | **+31.3 ± 5.6** | 0.78 → **0.52** |
+| 160             | random | 106.5 ± 3.4 | 146.9 ± 6.6 | **+40.4 ± 5.8** | 0.99 → 0.98     |
+| 160             | gated  | 287.1 ± 7.4 | 326.2 ± 7.2 | **+39.2 ± 7.1** | 0.94 → **0.78** |
+
+Three things follow, and the third is the one that changes a recommendation:
+
+- **Uneven traffic is a first-class cost, not a detail.** 40–50 RMSE points at matched total
+  volume, comparable to a 25% linking-item budget. Sections 3–5 are therefore optimistic about a
+  real catalogue, in a direction that was previously unquantified.
+- **It hurts ungated pairing too** (+40 to +50), so it is not a gating effect. It is the plain
+  fact that a puzzle with 3 attempts cannot be measured no matter who attempted it, and RMSE is
+  dominated by the starved tail.
+- **It degrades the *ordering*, which gating alone did not.** Under gating at 160 attempts, ρ falls
+  from 0.94 to 0.78. That matters because the ordering is what a mislabel-review queue rests on —
+  the one application that survives a compressed scale. Under realistic traffic it is weaker than
+  the flat-traffic tables imply, which is an argument for gating that queue on per-puzzle attempt
+  counts rather than running it over the whole catalogue.
+
+The operational consequence is the same per-puzzle readiness gate the rest of this repo argues
+for, with more force: **the catalogue will never be uniformly measured, so plan for a
+measured head and a hand-labelled tail rather than a cutover.**
+
+**One honest asterisk on the gated funnel rows.** The funnel pushes the *head* puzzles' attempt
+counts far past what the ±300 band can supply (the easiest puzzle wants 636 attempts at mean 160),
+so `make_log`'s nearest-N fallback — the same artefact the section-3 trap describes — fires on 6%
+of puzzles carrying **~21% of attempts** at mean 160 (1% of puzzles, ~4% of attempts, at mean 40),
+and the run prints its partly-ungated warning. Those wide comparisons *help* the estimator, so the
+gated funnel cells are optimistic: the true cost of funnelled traffic under intact gating is at
+least what this table shows, and the conclusions above survive in the direction that matters.
+
 ## Limitations
 
 - **The joint fit is MAP, and the prior sets the scale.** A Gaussian prior is required, not
@@ -202,10 +353,10 @@ guessing noise than a typical puzzle app. That helps difficulty estimation.
   `(SCALE/TRUE_SD)² = 0.1386`, the value implied by the population the simulation actually draws
   from, rather than a tuned number — tuning it against the planted truth would be picking a knob
   by peeking at the answer. That default is the *pessimistic* end for the batch fit: at 160
-  attempts per puzzle, gated, weakening it to 0.05 and then 0.03 takes the joint fit from 101 → 41
-  → 33 RMSE(off), with slope going 1.27 → 1.06 → 1.00. The reported batch advantage is therefore a
+  attempts per puzzle, gated, weakening it to 0.05 and then 0.03 takes the joint fit from 110 → 47
+  → 34 RMSE(off), with slope going 1.29 → 1.08 → 1.02. The reported batch advantage is therefore a
   lower bound, and section 4's conclusion would only get stronger with a tuned prior. What does
-  *not* improve is the 10-attempt cell (385 → 366 → 364), so the low-volume information limit is
+  *not* improve is the 10-attempt cell (388 → 365 → 358), so the low-volume information limit is
   not a prior artefact either. `--l2` is there to check all of this yourself.
 - **RMSE(aff) is an oracle metric.** Its slope and intercept are least-squares-fitted against the
   planted difficulties, which a real deployment does not have. Realising a rescale in production
@@ -215,12 +366,21 @@ guessing noise than a typical puzzle app. That helps difficulty estimation.
   a best case. Real data is not Rasch.
 - **The outcome model is logistic on a single latent trait.** Real Go skill is not
   one-dimensional, which is the whole premise of a per-skill profile.
-- **Two reps, and no confidence intervals anywhere.** Every table is a mean over `--reps` worlds
-  and nothing computes a standard error, so gaps of a few RMSE points between adjacent cells are
-  not resolvable. The gaps the conclusions rest on are 100+ points; the small ones are not claimed.
 - **No hint damping in the sweep.** The Lichess weight is implemented and tested in `play()` but
   the sweep runs undamped, so the tree regime is modelled slightly optimistically.
+- **The rank map is linear and the planted range is not the catalogue's.** See "The scale" above:
+  ~10% of planted puzzles land above 1d, nothing lands below 20k, and 100 points per rank is least
+  accurate at high kyu, where the tree's first tier sits.
 - Difficulties and skills are drawn from the same Gaussian. A real catalogue is lumpier.
+- **The funnel is a shape, not a fit.** Section 7's decay is exponential in the difficulty
+  percentile because that is the simplest one-parameter family with the right qualitative
+  behaviour. Real tree traffic follows the prerequisite graph and the drop-off between nodes;
+  matching it needs their numbers, and the section reports a direction and a rough magnitude
+  rather than a prediction.
+- **Confidence intervals cover the simulation, not the modelling.** Every figure is a mean over 10
+  planted worlds, the primary error figures carry a 95% t interval, and the regime contrasts are
+  paired, so sampling noise is quantified. That says nothing about whether the *model* is right —
+  the bullets above are the uncertainty that matters and none of them has an error bar.
 
 ### Sourcing
 
@@ -252,10 +412,19 @@ weighted 0.2, a hinted loss 0.7) where `play()` takes one symmetric `weight`.
 ./src/parse_tree.py --html data/skilltree-2026-08-16.html # section 1, offline from the snapshot
 ./src/parse_tree.py --json out/tree.json                 # or fetch the live public page
 ./src/recovery.py --quick                                # fast sweep, for iterating
-./src/recovery.py --puzzles 300 --reps 2                 # the section-3 table; writes out/recovery.png
-./src/batch_fit.py --puzzles 300 --reps 2                # the section-4 table
-./src/recovery.py --puzzles 300 --reps 2 --linking 0.25 0.5 1.0   # the section-5 table
+./src/recovery.py --puzzles 300 --reps 10                # the section-3 table; writes out/recovery.png
+./src/batch_fit.py --puzzles 300 --reps 10               # the section-4 table
+./src/recovery.py --puzzles 300 --reps 10 --sweep 40 --linking 0.25 0.5 1.0 --out /tmp/linking.png  # the section-5 table
+./src/recovery.py --puzzles 300 --reps 10 --sweep 40 160 --funnel 0.02 --out /tmp/funnel.png        # the section-7 table
 ```
+
+`--reps` drives the confidence intervals: below 2 they are undefined, 10 is what every table above
+uses, and the cost is linear. `--sweep` takes the attempts-per-puzzle points directly — read its
+`--help` before pushing past 160, because the band fallback silently ungates the simulation unless
+`--players` grows with it (section 3). The two `--sweep` commands pass `--out` explicitly because
+the default overwrites the committed `out/recovery.png` — the full-sweep chart the one-pager embeds
+— with a one- or two-point plot. With `--funnel` the script also runs each regime's flat twin and
+prints the paired funnel-vs-flat cost, which is where section 7's "paired cost" column comes from.
 
 Every table above is one of these commands at its printed defaults, seed included. Each script
 carries its own [PEP 723](https://peps.python.org/pep-0723/) inline dependency header, so `uv`
@@ -279,14 +448,21 @@ validation, a build of `docs/METHOD.md`, and asserts the section-1 inventory sti
 ## Layout
 
 ```
+TODO.md                 what is done, what is open, and the one-page deliverable it builds to
 docs/METHOD.md          the full method write-up: what, why and how, from Elo onwards
+docs/RESEARCH.md        the literature behind the open design questions, with citations
+docs/PROBLEM-SOURCES.md who already rates Go puzzles by attempts, and what content is reusable
+data/problem_sources.json   every source checked, with verified licence and verdict
+data/taxonomy_map.json      external problem tags -> Go Magic's (phase x concept) grid
 docs/build.py           renders METHOD.md into out/method.html (a reading view)
+docs/onepager.py        renders the one-page summary into out/onepager.pdf
 docs/assets/            that page's stylesheet and script, as real files
 NOTICE                  third-party content: the page snapshot, and what is Lichess's
 src/parse_tree.py       public skill-tree parser
 src/glicko2.py          Glicko-2 + Lichess production rules
 src/recovery.py         the planted world, the attempt log, online fitting, scoring, the plot
 src/batch_fit.py        joint Rasch MAP refit of the same log, to test the online artefact
+src/build_collection.py fetches openly-licensed Go problems onto the 3x5 grid (content untracked)
 tests/test_glicko2.py   Glickman's worked example and the clamps
 data/                   a reduced snapshot of the public page, so section 1 reproduces offline
 ```

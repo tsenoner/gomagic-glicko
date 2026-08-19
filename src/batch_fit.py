@@ -43,7 +43,6 @@ away. `--l2` is there to let you check the sensitivity yourself.
 from __future__ import annotations
 
 import argparse
-import random
 import sys
 from pathlib import Path
 
@@ -51,7 +50,18 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from glicko2 import DEFAULT_RATING, SCALE
-from recovery import TRUE_SD, make_log, make_world, replay, score_values
+from recovery import (
+    TRUE_SD,
+    ci95,
+    contrast_str,
+    describe_scale,
+    log_rng,
+    make_log,
+    make_world,
+    replay,
+    score_values,
+    world_rng,
+)
 
 # A Gaussian prior of sd `TRUE_SD` (the sd both planted populations are drawn with), expressed in
 # the model's natural-log units, is an L2 weight of 1/sd^2. Deriving it beats picking it: tuning
@@ -113,7 +123,8 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--puzzles", type=int, default=300)
     ap.add_argument("--players", type=int, default=3000)
-    ap.add_argument("--reps", type=int, default=2)
+    ap.add_argument("--reps", type=int, default=10,
+                    help="repeats per point; every figure carries a 95%% t interval over them")
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--band", type=float, default=300.0)
     ap.add_argument("--l2", type=float, default=DEFAULT_L2,
@@ -127,23 +138,29 @@ def main() -> None:
     reps = 1 if args.quick else args.reps
 
     print(f"\n  {args.puzzles} puzzles, {args.players} players — online Glicko-2 vs joint MAP fit")
+    print(describe_scale())
     print(f"  Both estimators are scored on the same attempt log. prior l2={args.l2:.4f}, "
-          f"{args.iters} iters.")
-    print("  RMSE(off) keeps the fitted scale; RMSE(aff) removes it. slope 1.0 == scales agree.\n")
-    print(f"  {'attempts':>8}  {'regime':<7}  {'estimator':<9}  {'RMSE(off)':>9}  "
+          f"{args.iters} iters, {reps} reps.")
+    print("  RMSE(off) keeps the fitted scale; RMSE(aff) removes it. slope 1.0 == scales agree.")
+    print("  ± is the half-width of a 95% t interval over reps.\n")
+    print(f"  {'attempts':>8}  {'regime':<7}  {'estimator':<9}  {'RMSE(off)':>17}  "
           f"{'RMSE(aff)':>9}  {'slope':>5}  {'rho':>5}")
-    print(f"  {'-'*8}  {'-'*7}  {'-'*9}  {'-'*9}  {'-'*9}  {'-'*5}  {'-'*5}")
+    print(f"  {'-'*8}  {'-'*7}  {'-'*9}  {'-'*17}  {'-'*9}  {'-'*5}  {'-'*5}")
+
+    # Streams imported from recovery, so "same worlds, same logs as the online sweep, digit for
+    # digit" is enforced rather than maintained by hand. One world per rep, reused at every
+    # sweep point, exactly as recovery.py builds them.
+    worlds = [make_world(args.puzzles, args.players, world_rng(args.seed, r))
+              for r in range(reps)]
 
     for n in sweep:
         for banded in (False, True):
             rows = {"online": [], "batch": []}
             for r in range(reps):
-                world_rng = random.Random(args.seed + r * 977)
-                sim = make_world(args.puzzles, args.players, world_rng)
+                sim = worlds[r]
 
                 # One log, both estimators. This is the whole point of the file.
-                log_rng = random.Random(args.seed + r * 7919 + n)
-                log = make_log(sim, n, banded, log_rng, band=args.band)
+                log = make_log(sim, n, banded, log_rng(args.seed, r, n), band=args.band)
 
                 pz, _ = replay(log, args.players, args.puzzles)
                 _, beta = fit(log, args.players, args.puzzles,
@@ -157,9 +174,17 @@ def main() -> None:
 
             for est in ("online", "batch"):
                 s = rows[est]
+                m, h = ci95([x.rmse_offset for x in s])
+                cell = f"{m:>9.1f} ± {h:>5.1f}" if h == h else f"{m:.1f}"
                 print(f"  {n:>8}  {'banded' if banded else 'random':<7}  {est:<9}  "
-                      f"{mean_of(s, 'rmse_offset'):>9.1f}  {mean_of(s, 'rmse_affine'):>9.1f}  "
+                      f"{cell:>17}  {mean_of(s, 'rmse_affine'):>9.1f}  "
                       f"{mean_of(s, 'slope'):>5.2f}  {mean_of(s, 'rho'):>5.2f}")
+            # The estimators are run on one shared log per rep, so this contrast is paired twice
+            # over — same world, same log — and is the tightest interval in the repo.
+            if reps >= 2:
+                print(f"  {'':>8}  {'':<7}  paired batch − online: "
+                      f"{contrast_str([x.rmse_offset for x in rows['batch']],
+                                      [x.rmse_offset for x in rows['online']])}")
         print()
 
 
