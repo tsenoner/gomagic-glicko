@@ -51,7 +51,7 @@ to lead with, and whether the rank-scale caveat belongs on the page or only in t
       regime contrast is *paired* on the same planted worlds. All contrasts are significant.
 - [x] **Uneven traffic.** `--funnel` models a prerequisite tree's drop-off. It costs 40–50 RMSE
       points at matched total volume and damages the ordering under gating (ρ 0.94 → 0.78). See
-      README section 7.
+      [`docs/FINDINGS.md`](docs/FINDINGS.md) section 7.
 - [x] **The extended-sweep trap.** Running past 160 attempts appears to show gating stops
       mattering; it is the band fallback silently ungating the simulation. Documented, with the
       population-scaled control that refutes it.
@@ -65,7 +65,7 @@ to lead with, and whether the rank-scale caveat belongs on the page or only in t
       bound the effect.
 - [ ] **Decide whether to restate the tables in OGS units.** `docs/RESEARCH.md` §1 establishes that
       "100 points per rank" is EGF's *label* map, and that the production Go-Glicko-2 system (OGS)
-      uses an exponential map where 30k–1d spans ~1,400 points, not 3,000. The README now flags
+      uses an exponential map where 30k–1d spans ~1,400 points, not 3,000. `docs/FINDINGS.md` now flags
       that "±100 ≈ one rank" is dan-calibrated and generous below. What is *not* decided: whether
       the planted population and every published table should be restated on the OGS curve, and
       what the 2.36× compression figure becomes in those units. This is the open scale question,
@@ -142,7 +142,7 @@ company asks about.
       (Elo, per-problem K decaying ~127→10), Tsumego Hero (EGF GoR, both sides per attempt),
       probably 101weiqi. OGS does *not*, but has had an open issue for it since Feb 2022 while
       already recording the attempt counts. Full survey and licence audit in
-      [`docs/PROBLEM-SOURCES.md`](docs/PROBLEM-SOURCES.md); the README now says this up front
+      [`docs/PROBLEM-SOURCES.md`](docs/PROBLEM-SOURCES.md); `docs/FINDINGS.md` §1b now says this up front
       rather than implying novelty.
 - [ ] **Engine-derived difficulty.** KataGo features — solution depth, branching factor, policy
       entropy, value swing at the key move — are the only thing that cold-starts all 10,160

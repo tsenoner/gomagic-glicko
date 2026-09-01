@@ -52,7 +52,7 @@ Nothing in this document has been implemented. It is the reading behind
 
 ## 1. The scale: what one rank is actually worth
 
-**This must be stated explicitly in the README before any claim about "compression" means anything.**
+**This must be stated explicitly in [`FINDINGS.md`](FINDINGS.md) before any claim about "compression" means anything.**
 
 ### Short answer
 
@@ -594,7 +594,7 @@ Cheapest-and-most-defensible first. Each step is independently reportable.
 
 | # | Step | Cost | Why it earns its place |
 |---|---|---|---|
-| 1 | **Declare the scale.** Put OGS's `525·exp(rank/23.15)` (or EGF labels + `a_eff`) in the README, with the tier spans. | ~1 hour | Nothing downstream means anything without it, and a Go company will check. |
+| 1 | **Declare the scale.** Put OGS's `525·exp(rank/23.15)` (or EGF labels + `a_eff`) in [`FINDINGS.md`](FINDINGS.md), with the tier spans. | ~1 hour | Nothing downstream means anything without it, and a Go company will check. |
 | 2 | **RTE / median-RT data hygiene.** Rapid-guess floor, idle-tab ceiling, `log2(t/median_item)`. | ~1 day | Improves difficulty estimates through preprocessing alone. No new model. Fully defensible in an interview. |
 | 3 | **Seed player priors from Go Diagnostics** (RD ≈ 80–90 rather than 350) and run the A/B against the flat prior. | ~1 day | Uses a product they already own; worth ~15 attempts of free information per player. |
 | 4 | **Add Go Diagnostics items as ungated anchors** to the simulation; sweep the anchor count and plot slope → 1.0. | ~2 days | This directly attacks the λ₂ / scale-compression finding. If a handful of ungated items collapses the 2.36 slope, that is the headline result of the whole repo — and it is an actionable product recommendation, not just a measurement one. |
@@ -620,16 +620,16 @@ particular the fourth, which prescribes a gate this repo has already measured as
 **Gaps in the brief (ranked by how much they change the deliverable)**
 
 - **The obvious search never run: does any Go site already rate puzzles by attempts?** Six dossiers cite Lichess and Chess.com; none checks 101weiqi (has a rated tsumego ladder with user-derived difficulty), goproblems.com (user-rated problems since ~2005), or Tsumego Hero. That is the one direct, in-domain precedent — a Go company will ask about it first, and its absence quietly weakens "no Go-specific literature exists" (there may be no *papers*, but there is production practice).
-- **Second obvious search not run: engine-derived difficulty.** No search for KataGo/solver-based tsumego difficulty (solution depth, branching factor, policy entropy, value-swing at the key move). This is the only thing that cold-starts all 10,160 puzzles with *zero* traffic, which is precisely the failure mode README §7 identifies (median puzzle 22 attempts, hardest 3). Chess's analogue — predicting puzzle rating from features, the Lichess puzzle-difficulty dataset — is also uncited.
+- **Second obvious search not run: engine-derived difficulty.** No search for KataGo/solver-based tsumego difficulty (solution depth, branching factor, policy entropy, value-swing at the key move). This is the only thing that cold-starts all 10,160 puzzles with *zero* traffic, which is precisely the failure mode [`FINDINGS.md`](FINDINGS.md) §7 identifies (median puzzle 22 attempts, hardest 3). Chess's analogue — predicting puzzle rating from features, the Lichess puzzle-difficulty dataset — is also uncited.
 - **The free item-side prior is ignored.** The brief argues hard for informative *player* priors (Go Diagnostics, §2a) and never once proposes using Go Magic's existing 11-level hand labels as the informative prior on `d_p`. That reframes the hand label from "thing to replace" to "prior to shrink away from as traffic accrues", handles the starved tail, and is a one-line change to `batch_fit.py`. Biggest missed recommendation in the document.
 - **Recommendation 2(d) contradicts the repo's own measurement.** "Publish difficulty when RD < 52 / 87" — but `docs/METHOD.md` §7 and TODO.md already found RD is *not* a safe readiness gate under gating: ~77 points of reported uncertainty against ~287 points of realised error. The brief prescribes exactly the gate the repo flagged as unsafe, with no calibration step. Either drop it or condition it on the ungated instrument's RD.
-- **Uneven traffic (README §7) appears nowhere in the brief.** The funnel costs 40–50 RMSE points and collapses gated ρ from 0.94 → 0.78 — as expensive as gating itself. Every per-tag recommendation assumes "high per-tag volume for a 10,160-puzzle bank"; under the measured funnel most tags have a starved tail and the Feinberg–Wainer / Sinharay "≥20 items" bar fails for most players. The §3 and §6 recommendations are never re-checked under funnelled traffic.
-- **Q6 is answered as a literature question, not as a project question.** Adopting `525·exp(rank/23.15)` invalidates the units of every table in the README: the ±100 "one rank" target becomes 23 points at 30k and 85 at 1d, the 467 no-information ceiling changes meaning, and "slope 2.36" is only interpretable against a stated map. The brief says "declare the scale" but never says whether the planted population and the published tables must be restated, nor what the 2.3× compression becomes in OGS units. That is the actual unanswered question.
+- **Uneven traffic ([`FINDINGS.md`](FINDINGS.md) §7) appears nowhere in the brief.** The funnel costs 40–50 RMSE points and collapses gated ρ from 0.94 → 0.78 — as expensive as gating itself. Every per-tag recommendation assumes "high per-tag volume for a 10,160-puzzle bank"; under the measured funnel most tags have a starved tail and the Feinberg–Wainer / Sinharay "≥20 items" bar fails for most players. The §3 and §6 recommendations are never re-checked under funnelled traffic.
+- **Q6 is answered as a literature question, not as a project question.** Adopting `525·exp(rank/23.15)` invalidates the units of every table in [`FINDINGS.md`](FINDINGS.md): the ±100 "one rank" target becomes 23 points at 30k and 85 at 1d, the 467 no-information ceiling changes meaning, and "slope 2.36" is only interpretable against a stated map. The brief says "declare the scale" but never says whether the planted population and the published tables must be restated, nor what the 2.3× compression becomes in OGS units. That is the actual unanswered question.
 - **"PvP edges are the highest-value fix for the gating penalty" is unsupported and outranked by the repo's own numbers.** Measured fixes: joint refit −61% (free), linking items −57 to −188 RMSE with dose-response. PvP is unmeasured, requires a product Go Magic does not have, and the brief's own §5 build item is 2 days of simulation. Calling it highest-value is an overclaim against measured alternatives.
 - **The Ford/Bong–Rinaldo identifiability framing is probably the wrong theorem.** A ±300 band is *banded*, not block-diagonal — adjacent tiers share solvers, so the graph is connected and the MLE exists. The repo confirms this: gated error falls steadily at ~28 points per doubling out to 1,280 attempts. The pathology is ill-conditioning / low Fisher information along the scale direction, not non-identifiability, yet the brief quotes "no amount of data will be able to resolve" verbatim. λ₂ is the right intuition; the citation attached to it is not.
 - **Single-weak-source claims that are load-bearing:** (a) the Lichess puzzle↔game slope 0.62 — one community blog post, author-flagged selection bias, no date or primary link — yet it is the concrete number the §5 falsification test is calibrated against; (b) the "10–30 %" RT budget, extrapolated from one 20 % simulation figure (ρ=.75, N=300) and then quoted verbatim as a headline line to include in the write-up; (c) Sackmann's clay row, one blog post with no CIs, called "the most persuasive artifact in this entire literature"; (d) the Nordic Go Dojo blog as the sole source for what the brief calls *settled* about stone value; (e) Mori's unpublished preprint carrying the whole handicap tension.
 - **No discrimination or guessing parameter anywhere.** The whole brief (and `batch_fit.py`) is 1PL/Rasch. Go puzzles plausibly vary hugely in discrimination — a life-and-death shape you either see or you don't — and the answer space is small enough that a lower asymptote is real. Discrimination heterogeneity is a known source of exactly the scale distortion being measured, and 2PL/3PL recovery under banded designs is never searched or discussed (only α_i inside the RT model, which is time discrimination, not item discrimination).
-- **Two load-bearing data assumptions are unflagged.** The brief flags "Go Diagnostics is ungated" as a hypothesis, but not (a) that per-attempt **timestamps exist and are usable** — the entire §4 is void otherwise, and there is no timer today, so the log's right tail is idle-tab contaminated in an unknown proportion; nor (b) the "millions of attempts already in their database" volume claim the 508k/2.5M feasibility arithmetic rests on, which is unsourced in the README's own sourcing table.
+- **Two load-bearing data assumptions are unflagged.** The brief flags "Go Diagnostics is ungated" as a hypothesis, but not (a) that per-attempt **timestamps exist and are usable** — the entire §4 is void otherwise, and there is no timer today, so the log's right tail is idle-tab contaminated in an unknown proportion; nor (b) the "millions of attempts already in their database" volume claim the 508k/2.5M feasibility arithmetic rests on, which is unsourced in the repo's own sourcing table.
 - **No scoping to the deliverable, and no separation of runnable-today from needs-their-DB.** TODO.md §0 says the output is a one-page PDF, not started. The build order is ~14 days across 9 steps, of which steps 3, 7, and most of 2 require an attempt log nobody outside the company has. The brief never says which one or two items change the one-pager, nor states the decision the difficulty number actually feeds (mislabel-review queue? tree ordering? adaptive serving?) — and the required precision differs by an order of magnitude between them.
 
 ---
@@ -640,7 +640,7 @@ particular the fourth, which prescribes a gate this repo has already measured as
 |---|---|---|
 | Publish difficulty when RD < 52 / 87 (§2d) | Under gating, RD reports ~77 points of uncertainty against ~287 points of realised error ([`METHOD.md`](METHOD.md) §7) | **The repo wins.** An RD threshold is not a safe readiness gate on gated data. Either calibrate RD against realised error on anchor items first, or gate on the *ungated* instrument's RD |
 | PvP edges are the highest-value fix for the gating penalty (§5) | Joint refit: −61%, free, measured. Linking items: −57 to −188 RMSE with a dose-response, measured | **The repo wins.** PvP is unmeasured and needs a product that does not exist yet. It is a good idea ranked too highly against measured alternatives |
-| Per-tag recommendations assume high per-tag volume across a 10,160-puzzle bank | Under a realistic traffic funnel the median puzzle sees 22 attempts and the hardest 3 ([`README.md`](../README.md) §7) | **Unresolved, and it matters.** The Feinberg–Wainer and Sinharay volume bars were never re-checked under funnelled traffic. Per-tag ratings are likely further off than §3 implies |
+| Per-tag recommendations assume high per-tag volume across a 10,160-puzzle bank | Under a realistic traffic funnel the median puzzle sees 22 attempts and the hardest 3 ([`FINDINGS.md`](FINDINGS.md) §7) | **Unresolved, and it matters.** The Feinberg–Wainer and Sinharay volume bars were never re-checked under funnelled traffic. Per-tag ratings are likely further off than §3 implies |
 
 ---
 
@@ -682,7 +682,7 @@ independent source that **"±100 points ≈ one rank" is dan-calibrated and gene
 
 **Non-transitivity.** Listed as a known limitation: three equally-rated players can form a win
 cycle, because style matchups exist and a single latent trait cannot express them. That is the
-`README` limitation "real Go skill is not one-dimensional", stated by someone who models ratings.
+`FINDINGS.md` limitation "real Go skill is not one-dimensional", stated by someone who models ratings.
 
 ## What is new, and what it changes here
 
@@ -699,7 +699,7 @@ grid, and it is a far more persuasive argument to a Go audience than James–Ste
 and accused of sandbagging — purely from playing tired blitz games while distracted. The
 simulation assumes one clean latent trait and a well-behaved logistic; a real attempt log contains
 low-effort attempts that satisfy neither. This supports two existing positions: the lives mechanic
-genuinely suppresses careless clicking (`README` §6), and response time earns its place as a
+genuinely suppresses careless clicking (`FINDINGS.md` §6), and response time earns its place as a
 *hygiene filter* — rapid-guessing detection — rather than as an accuracy improvement (§4 above).
 
 **3. Rapid improvers contaminate the items they touch.** Named as a known problem: players who
