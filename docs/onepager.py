@@ -70,60 +70,60 @@ def build_html(chart: str, css: str) -> str:
 <style>{css}</style></head><body>
 
 <h1>Measuring Go puzzle difficulty</h1>
-<p class="sub">How much attempt data would it take to <em>measure</em> a puzzle's difficulty from
-player results, instead of assigning it by hand?</p>
+<p class="sub">How much attempt data does it take to <em>measure</em> a puzzle's difficulty,
+instead of assigning it by hand?</p>
 <div class="rule"></div>
 
 <p class="setup"><strong>What I did.</strong> Plant 300 puzzles and 3,000 players with known
-difficulties and skills. Simulate the first-attempt log that skill-tree gating produces &mdash;
-each player meets only puzzles near their own level, the exposure pattern implied by the tree
-on Go Magic's public page. Fit Glicko-2 on that log with the truth hidden, and score how far
-the fitted difficulties land from the planted ones. The scale:
-<strong>&plusmn;100 rating points &asymp; one Go rank</strong> (EGF's convention, measured:
-accurate at 1d, generous below); 467, the planted spread, would mean nothing was learned.</p>
+difficulties and skills. Simulate their first-attempt logs under three exposure patterns; the one
+modelling Go Magic is skill-tree gating, where a player meets only puzzles near their own level. Fit Glicko-2 with the truth hidden, then score the fitted difficulties against it. Scale:
+<strong>&plusmn;100 points &asymp; one Go rank</strong> (EGF convention, accurate at 1d and
+generous below); assigning every puzzle the same difficulty scores 467.</p>
 
 <div class="finding">
-  <p class="lead">A puzzle's difficulty can be measured to about one rank from ~160 first
-  attempts &mdash; but on skill-tree data only if the log is fitted <em>jointly</em>. Replaying
-  the same log one attempt at a time, the standard online way, leaves almost three ranks of
-  error. Same data: a <span class="num">61%</span> cut from changing nothing but
-  how the fit is run.</p>
-  <p class="note">The trap this avoids: running online Glicko-2 over your history, seeing ~290
-  points of error, and concluding the data is inadequate. The data is fine &mdash; the estimator
-  is the problem. A joint refit of the identical log reaches ~110.</p>
+  <p class="lead">About 160 first attempts measure a puzzle's difficulty to roughly one rank,
+  but on skill-tree data only if the log is fitted <em>jointly</em>. Replaying the same log
+  one attempt at a time, the standard online way, leaves almost three ranks of error:
+  <span class="num">287</span> points against <span class="num">112</span>, a
+  <span class="num">61%</span> cut from how the fit is run alone.</p>
+  <p class="note">The failure mode it avoids: reading 290 points of error off an online refit and
+  concluding the data is inadequate.</p>
 </div>
 
 <div class="split">
   <figure>
     <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle">
-    <figcaption><strong>Online Glicko-2 under three traffic shapes:</strong> random pairing (what
-    a diagnostic test produces), skill-tree gating, and gating with 10% of traffic ungated. Lower
-    is better; the dotted line is one-rank accuracy; bands are 95% intervals over ten repeats.
-    The joint fit is in the table.</figcaption>
+    <figcaption><strong>Online Glicko-2 under three exposure patterns:</strong> ungated random
+    pairing (a diagnostic test), skill-tree gating as implied by Go Magic's public tree, and gating
+    with 10% of traffic ungated. Dotted line is one-rank accuracy; bands are 95% intervals over ten
+    planted worlds.</figcaption>
+    <p class="repro"><strong>Reproduce.</strong>
+    <code>./src/recovery.py --puzzles 300 --reps 10</code> draws the curves;
+    <code>./src/batch_fit.py</code> refits the identical log jointly. Every other number here is one
+    command in <code>docs/RUNNING.md</code>; the estimator is checked against Glickman's worked
+    example.</p>
   </figure>
   <div>
     <h2>Three results</h2>
     <div class="stack">
       <div>
-        <h3>The tree itself makes measurement harder</h3>
-        <p>A skill tree serves each player puzzles near their own level, so no attempt ever
-        directly compares an easy puzzle with a hard one. That costs
-        <span class="num">1.6&times;</span> the error at 10 attempts per puzzle,
-        <span class="num">2.7&times;</span> at 160 &mdash; and the gap stays near 2.8&times; out
-        to 1,280. Traffic does not close it.</p>
+        <h3>Gating itself costs accuracy</h3>
+        <p>Under gating no attempt directly compares an easy puzzle with a hard one:
+        <span class="num">1.6&times;</span> the error at 10 first attempts per puzzle,
+        <span class="num">2.7&times;</span> at 160, and a smaller check holds ~2.8&times; out to
+        1,280. Traffic does not close it.</p>
       </div>
       <div>
-        <h3>The error is in the spacing, not the ordering</h3>
-        <p>At useful volume the fit ranks puzzles almost perfectly &mdash; rank correlation
-        <span class="num">0.94</span> &mdash; while compressing the scale to under half its true
-        width. It knows <em>which</em> puzzle is harder, not <em>by how much</em>. A standard,
-        repairable measurement problem, not noise.</p>
+        <h3>The damage is to the spacing, not the ordering</h3>
+        <p>At 160 attempts the fit still ranks puzzles well (Spearman
+        <span class="num">0.94</span>), but compresses the scale to under half its width. It knows
+        <em>which</em> puzzle is harder, not <em>by how much</em>. Compression is repairable.</p>
       </div>
       <div>
         <h3>Uneven traffic is a second, separate cost</h3>
-        <p>Everybody attempts the first node; few reach the last. At the same total volume that
-        funnel adds <span class="num">40&ndash;50</span> points of error and degrades the
-        ordering &mdash; the one thing gating had left intact.</p>
+        <p>Everybody attempts the first node; few reach the last. At matched volume that funnel
+        costs <span class="num">30&ndash;50</span> points and drops the ordering from 0.94 to
+        <span class="num">0.78</span>, the one thing gating had left intact.</p>
       </div>
     </div>
     <table class="mini">
@@ -137,10 +137,10 @@ accurate at 1d, generous below); 467, the planted spread, would mean nothing was
         <tr><td>160</td><td>107</td><td>287</td><td class="win">112</td></tr>
       </tbody>
     </table>
-    <p class="tnote">Typical difficulty error in rating points (&plusmn;100 &asymp; one rank).
-    Means over ten simulated worlds; within each, the last two columns fit the identical log
-    &mdash; only the estimator changes.
-    95% intervals are &plusmn;3&ndash;8 points; every contrast is significant.</p>
+    <p class="tnote">RMSE in rating points, mean offset removed, since neither estimator fixes an
+    origin (&plusmn;100 &asymp; one rank). Ten planted worlds; the last two columns fit the
+    identical log, so only the estimator differs. 95% intervals &plusmn;3&ndash;8; every contrast
+    significant.</p>
   </div>
 </div>
 
@@ -148,32 +148,32 @@ accurate at 1d, generous below); 467, the planted spread, would mean nothing was
 <div class="cols">
   <div>
     <h3>Backfill jointly, serve online</h3>
-    <p>Fit the existing history once, jointly, to get the labels. Keep online Glicko-2 for the
-    live path, where updating one attempt at a time is the right tool.</p>
+    <p>Fit the history once, jointly, for the labels; keep online Glicko-2 for the live path, where
+    one-at-a-time updating is right.</p>
   </div>
   <div>
     <h3>Ship labels per puzzle, not per catalogue</h3>
-    <p>Coverage will never be uniform, so show a measured label only where the attempts exist.
-    Do not use Glicko's own confidence number (RD) as that switch: on gated data it claims
-    <span class="num">3.7&times;</span> more precision than it delivers.</p>
+    <p>Coverage will never be uniform: publish a measured label only where the attempts exist.
+    But not on Glicko's own RD, which under gating claims <span class="num">3.7&times;</span> more
+    precision than it delivers.</p>
   </div>
   <div>
     <h3>Anchor the scale with an ungated test</h3>
-    <p>A diagnostic that spans the whole rank range is the standard repair for a compressed
-    scale: routing 25% of traffic through one buys back <span class="num">57</span> points of
-    error and much of the compression.</p>
+    <p>An ungated diagnostic spanning the rank range is the standard repair for a compressed scale:
+    25% of traffic through one buys back <span class="num">57</span> points and much of the
+    compression.</p>
   </div>
 </div>
 
 <div class="caveat">
-  <strong>What this does not claim.</strong> It does not claim any hand-assigned label is wrong
-  &mdash; checking that needs the private attempt log, which nobody outside the company has. It
-  answers the question that comes first: if you measured difficulty from attempts, how much data
-  would you need before the answer meant anything? That depends only on the estimator and the
-  <em>shape</em> of the data, so simulation settles it. Nothing here uses private data.
+  <strong>What this does not claim.</strong> Not that any hand-assigned label is wrong; testing
+  that needs the private attempt log. It answers the prior question: if difficulty were
+  measured from attempts, how much data would the answer need to mean anything? That depends only
+  on the estimator and the <em>shape</em> of the data, so simulation settles it, and nothing here
+  uses private data.
   <br><br>
-  <strong>The obvious next step is small:</strong> run the joint fit over one month of the real
-  attempt log, first attempts only, and check whether the recovery curve matches this one.
+  <strong>The next step is small:</strong> run the joint fit over one month of the real log, first
+  attempts only, and check the recovery curve against it.
 </div>
 
 <footer>

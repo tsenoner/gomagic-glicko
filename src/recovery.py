@@ -477,15 +477,22 @@ def main() -> None:
     _plot(results, args.out, args.puzzles, args.players, reps, args.funnel)
 
 
+def _legend(regime: str) -> str:
+    """Curves carry the ungated/gated vocabulary the write-ups use; the printed tables keep the
+    internal regime names, so `banded+10% link` reads as `gated + 10% ungated` on the figure."""
+    return regime.replace("banded+", "gated + ").replace(" link", " ungated")
+
+
 def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
           reps: int, funnel: float) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import NullLocator
 
-    fig, ax = plt.subplots(figsize=(7.5, 4.6), dpi=160)
-    fixed = {"random": ("#2563eb", "o", "random pairing (ungated diagnostic)"),
-             "banded": ("#dc2626", "s", "banded pairing (skill-tree gating)")}
+    fig, ax = plt.subplots(figsize=(7.5, 5.6), dpi=160)
+    fixed = {"random": ("#2563eb", "o", "ungated (random pairing)"),
+             "banded": ("#dc2626", "s", "gated (skill tree)")}
     greens = ["#16a34a", "#0d9488", "#4d7c0f", "#065f46"]
 
     linked = 0
@@ -493,7 +500,7 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
         if regime in fixed:
             colour, marker, label = fixed[regime]
         else:
-            colour, marker, label = greens[linked % len(greens)], "^", regime
+            colour, marker, label = greens[linked % len(greens)], "^", _legend(regime)
             linked += 1
         xs, ys, halves = [p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts]
         ax.plot(xs, ys, marker=marker, color=colour, lw=2, ms=5, label=label)
@@ -507,24 +514,33 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
                             color=colour, alpha=0.15, lw=0)
 
     ax.set_xscale("log")
-    ax.set_xlabel("first attempts per puzzle")
-    ax.set_ylabel("difficulty recovery error (RMSE, rating points)")
-    ax.set_title("How much data before a puzzle's difficulty is measured?", loc="left", fontsize=11)
+    # Label the sweep points themselves: the text cites 10, 40 and 160 attempts, and decade ticks
+    # alone leave the reader interpolating on a log axis.
+    ticks = sorted({x for pts in results.values() for x, *_ in pts})
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([f"{t:g}" for t in ticks])
+    ax.xaxis.set_minor_locator(NullLocator())
+    # Type sizes are set for the one-pager, where the figure is reproduced at about half its
+    # nominal width: matplotlib's 10pt defaults land near 5pt on the printed page.
+    ax.set_xlabel("first attempts per puzzle", fontsize=11)
+    ax.set_ylabel("difficulty recovery error (RMSE, rating points)", fontsize=11)
+    ax.tick_params(labelsize=10)
+    ax.set_title("How much data before a puzzle's difficulty is measured?", loc="left", fontsize=12)
     ax.axhline(100, color="#64748b", ls=":", lw=1)
-    ax.text(ax.get_xlim()[0] * 1.05, 104, "±100 points ≈ one Go rank", fontsize=8, color="#64748b")
+    ax.text(ax.get_xlim()[0] * 1.05, 104, "±100 points ≈ one Go rank", fontsize=9, color="#64748b")
     ax.grid(alpha=0.25, which="both")
-    ax.legend(frameon=False, fontsize=9)
+    ax.legend(frameon=False, fontsize=10.5)
     ax.spines[["top", "right"]].set_visible(False)
     fig.text(0.01, 0.01,
              f"simulation: {n_puzzles} puzzles, {n_players} players, {reps} reps"
              + (f", funnel {funnel:g}" if funnel < 1.0 else "")
              + f"; planted truth ~ N({DEFAULT_RATING:.0f}, {TRUE_SD:.0f}) "
              f"≈ {as_rank(DEFAULT_RATING - 3 * TRUE_SD)}–{as_rank(DEFAULT_RATING + 3 * TRUE_SD)} "
-             f"at ±3 sd.\nOnline Glicko-2 with Lichess clamps, scale-preserving RMSE; bands are "
-             f"95% t intervals. Shows what it would take to measure difficulty, "
-             f"not that any label is wrong.",
-             fontsize=6.5, color="#64748b")
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+             f"at ±3 sd.\nOnline Glicko-2 with Lichess clamps. Error is RMSE after removing a "
+             f"mean offset, so compression counts; bands are 95% t intervals."
+             f"\nShows what measuring difficulty would take, not that any label is wrong.",
+             fontsize=7, color="#64748b")
+    fig.tight_layout(rect=(0, 0.055, 1, 1))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out)
     print(f"  wrote {out}\n")
