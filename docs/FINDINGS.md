@@ -47,7 +47,8 @@ block at the top of every run, and the figure caption repeats it:
 | the no-information ceiling | **RMSE 467.** An estimator that guesses 1500 for every puzzle scores exactly the population sd |
 
 That last row is the one to keep in mind: an RMSE of 440 is not "somewhat bad", it is **nothing
-learned**. And the ±100 target on the plot is one rank.
+learned**. And the ±100 target on the plot is one rank — one *nominal* rank, which the next
+subsection shows is an honest rank at 1d and an optimistic one lower down.
 
 **Two honest mismatches with the real catalogue**, both flagged in `src/recovery.py`:
 
@@ -55,19 +56,27 @@ learned**. And the ±100 target on the plot is one rank.
   **10% of planted puzzles come out above 1d** — harder than any puzzle Go Magic actually has —
   and nothing is planted in the 30k–20k range where the tree's first tier lives.
 - The 100-points-per-rank map is **linear, and real Go ranks are not.** This is the EGF *label*
-  convention, which is linear by decree. The win-probability meaning is not: EGF's own model
-  carries `a_eff = (3300 − r)/7`, which coincides with the 400-point Elo scale used here only near
-  the 1k/1d boundary. OGS — the one production Go server running Glicko-2 — maps rank
-  exponentially instead (`rating = 525·exp(rank_idx/23.15)`), making a rank worth ~85 points at 1d,
-  ~55 at 10k and ~36 at 20k, with the whole 30k–1d span about **1,400 points rather than 3,000**.
+  convention, which is linear by decree — and as a label it is accurate: fitted against 4,983
+  active EGF players the slope is 101.4 points per rank at 20k–11k, 97.2 at 10k–1k, 99.5 at 1d–7d.
+  The *win-probability* meaning is what fails. Measured over 675,451 European tournament games
+  ([`RESEARCH.md`](RESEARCH.md) §1, reproducible with `./src/egd_scale.py`), one rank is worth:
 
-  **So "±100 points ≈ one rank" is sound at dan level and generous below it** — under the OGS map
-  the same 100 points is nearer *three* ranks at 20k, which is where the tree's first tier sits.
-  Error figures quoted in ranks should be read as a dan-calibrated lower bound.
+  | | 13k | 10k | 5k | 1k | **1d** | 4d | 6d |
+  |---|---|---|---|---|---|---|---|
+  | stronger player wins | 55.3% | 56.3% | 56.7% | 60.0% | **63.5%** | 67.5% | 77.4% |
+  | Elo-400 points per rank | 37 | 44 | 47 | 71 | **96** | 127 | 214 |
+
+  **So "±100 points ≈ one rank" is measured to be almost exactly right at 1d — and about 2.5×
+  too generous at 10k**, which is where the tree's first tiers sit. A rank is roughly 5× wider in
+  rating points at 6d than in the middle of the kyu range, because Go's ranks are a *handicap*
+  ladder: one rank means "one stone makes it fair", a fixed amount of compensation rather than a
+  fixed probability. Error figures quoted in ranks below should be read as a **dan-calibrated lower
+  bound**: a 300-point error is three ranks at 1d but nearer seven at 10k.
 
 Neither affects the *estimator* — it never sees a rank — but both mean the simulated population is
 a stylised Go population rather than Go Magic's. [`RESEARCH.md`](RESEARCH.md) §1 has the
-three competing mappings, their sources, and the places the literature genuinely disagrees.
+measurement, the four competing published mappings scored against it, and what remains genuinely
+unsettled (chiefly: everything below 12 kyu, where no trustworthy public measurement exists).
 
 ---
 

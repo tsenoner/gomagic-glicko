@@ -63,13 +63,20 @@ to lead with, and whether the rank-scale caveat belongs on the page or only in t
       tier sits. Fixing this properly needs their difficulty and player-strength distributions;
       short of that, a sensitivity run over two or three plausible population shapes would at least
       bound the effect.
-- [ ] **Decide whether to restate the tables in OGS units.** `docs/RESEARCH.md` §1 establishes that
-      "100 points per rank" is EGF's *label* map, and that the production Go-Glicko-2 system (OGS)
-      uses an exponential map where 30k–1d spans ~1,400 points, not 3,000. `docs/FINDINGS.md` now flags
-      that "±100 ≈ one rank" is dan-calibrated and generous below. What is *not* decided: whether
-      the planted population and every published table should be restated on the OGS curve, and
-      what the 2.36× compression figure becomes in those units. This is the open scale question,
-      and it changes how every result reads in ranks — though not the results themselves.
+- [ ] **Decide whether to restate the tables on the measured rank curve.** `docs/RESEARCH.md` §1 is
+      no longer a survey of competing conventions — it is a measurement against 675,451 EGD games,
+      and it settles the size of the effect: one rank is worth ~40 rating points through the kyu
+      range and 96 at 1d, so "±100 ≈ one rank" is right at dan level and ~2.5× too generous at 10k.
+      `docs/FINDINGS.md` now carries that curve. What is *not* decided: whether the planted
+      population and every published table should be **restated** on it, and what the 2.36×
+      compression figure becomes in those units. This is the open scale question, and it changes
+      how every result reads in ranks — though not the results themselves.
+      Two things make the decision harder rather than easier now that it is measured: the curve is
+      only trustworthy down to ~12 kyu, and Go Magic's first tier sits below that; and the measured
+      kyu-range figure (~40) is flatter than any published model predicts (49–72), because it is
+      taken in noisy grade-label space rather than rating space. Restating on a curve that is
+      itself extrapolated where it matters most may be worse than declaring the nominal map and its
+      error, which is what the docs do today.
 - [ ] **Hint damping is implemented but unused in the sweep.** `play(weight=…)` exists and is
       tested; the sweep runs undamped, so the gated regime is modelled slightly optimistically.
       Lichess's version is asymmetric (hinted win 0.2, hinted loss 0.7) and `_lerp` takes one

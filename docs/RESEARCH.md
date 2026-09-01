@@ -27,7 +27,11 @@ this repo's own measurement. Those are listed rather than quietly fixed, because
 load-bearing on a single weak source is itself part of the answer.
 
 Nothing in this document has been implemented. It is the reading behind
-[`TODO.md`](../TODO.md), not a report of work done.
+[`TODO.md`](../TODO.md), not a report of work done — **with one exception, flagged in place.**
+Section 1 was originally a comparison of four published mappings that concluded the literature
+could not be reconciled. It has since been replaced by a **primary measurement** against the
+European Go Database's own published statistics, because measuring the disagreement turned out to
+be cheaper than arbitrating it. That section carries its own provenance note, method, and caveats.
 
 ---
 
@@ -41,7 +45,7 @@ Nothing in this document has been implemented. It is the reading behind
 
 | # | Question | Answer |
 |---|---|---|
-| 6 | Real kyu/dan → rating-points mapping? | **Two different things are called "100 points per rank."** The *label* map is linear by decree (EGF); the *win-probability* meaning is strongly rank-dependent. Adopt OGS's exponential map: `rating = 525·exp(rank_idx/23.15)`. 30k→1d spans ~1400 points, not 3000. |
+| 6 | Real kyu/dan → rating-points mapping? | **Measured, not inferred** (§1, 675,451 EGD games). The *label* map is linear by decree and holds. The *win-probability* value of a rank is not: **37 Elo-points per rank at 13k, 71 at 1k, 96 at 1d, 214 at 6d** — ~5× wider at the top. "±100 ≈ one rank" is right at 1d and ~2.5× too generous at 10k. |
 | 1 | New players at 30k / unrated? | **Co-estimate with downweighting, no waiting period.** Glicko's `g(φ)` already downweights by opponent uncertainty. Seed the prior from Go Diagnostics. Exclude high-RD solvers only from the *puzzle-side* update, never from the player side. |
 | 2 | Per-puzzle-type player ratings? | **One global rating plus shrunk per-tag offsets — never independent per-tag pools.** Run the Feinberg–Wainer break-even test on their own log before shipping any per-tag number. |
 | 3 | Use time-to-solve? | **Yes, but as a scale anchor and a data-hygiene filter, not as an accuracy fix.** Budget a 10–30 % improvement, not a 2–3× one. Time on correct first attempts only. |
@@ -54,31 +58,140 @@ Nothing in this document has been implemented. It is the reading behind
 
 **This must be stated explicitly in [`FINDINGS.md`](FINDINGS.md) before any claim about "compression" means anything.**
 
+> **Provenance note.** Unlike the rest of this brief, this section is not a literature summary. The
+> tables below are a **primary measurement** taken from the European Go Database's own published
+> statistics — 675,451 even tournament games (1996–2025), a 1,052,934-game calibration table, and
+> the 4,983-player active ladder, retrieved 2026-09-01. The earlier version of this section compared
+> four published mappings against each other and concluded that the literature could not be
+> reconciled; measuring it turned out to be cheaper than arbitrating it.
+>
+> **Every number below is reproduced by [`src/egd_scale.py`](../src/egd_scale.py)**, which re-fetches
+> the source tables and reprints this section's tables end to end. `--selftest` checks the
+> arithmetic without touching the network and runs in CI. Method and caveats are at the end of the
+> section.
+
 ### Short answer
 
-The rank→rating *label* map is linear by decree in EGF (100 GoR per grade: 20k = 100, 1k = 2000, 1d = 2100, floor −900) and in AGA (rating/100 = rank). But the *win-probability* value of those 100 points is strongly rank-dependent in every system that models it. OGS — the one production Go server running Glicko-2 — abandons the linear map entirely.
+Two different things are called "100 points per rank", and only the first one is true.
 
-### The three mappings
+- **As a label**, one rank is 100 rating points everywhere, by decree — and the ladder obeys it.
+  Fitted slope on 4,983 active EGF players: **101.4** GoR/rank over 20k–11k, **97.2** over 10k–1k,
+  **99.5** over 1d–7d.
+- **As win probability**, one rank is not a fixed quantity at all. Measured over 675,451 even
+  games, one rank is worth **37 Elo-400 points at 13k, 71 at 1k, 96 at 1d, 127 at 4d and 214 at
+  6d** — about **5× wider at the top of the amateur range than in the middle of the kyu range**.
 
-**EGF (2021, Bradley–Terry on a log-transformed rating)** — [europeangodatabase.eu/EGD/EGF_rating_system.php](https://europeangodatabase.eu/EGD/EGF_rating_system.php)
+The crossover, where one rank is worth ~100 Elo-400 points and this repo's flat 400-point scale
+constant is exactly right, sits at **1k/1d**. That is not a coincidence: it is the level at which
+amateur rating systems were calibrated.
+
+The mechanism is that Go's ranks are a *handicap* ladder. One rank means "one stone makes it fair"
+— a fixed quantity of compensation, not a fixed probability. Elo assumes the opposite. The two
+agree only if performance noise is constant across levels, and it is not: weak players are
+erratic and throw away a one-stone edge, strong players convert it. Same nominal gap, double the
+decisiveness.
+
+### The measurement
+
+Win rate of the **stronger** player in even games across one declared grade, pooled over eleven
+EGD query windows spanning 1996–2025. 95% Wilson intervals.
+
+| rank | games | stronger player wins (95% CI) | Elo-400 points per rank | EGF-2021 | OGS | AGA |
+|---|---|---|---|---|---|---|
+| **18k** | 6,049 | 59.3% [58.1, 60.5] | **65** [57, 74] | 55.9% | 55.6% | 82.8% |
+| **15k** | 7,427 | 57.6% [56.5, 58.7] | **53** [45, 61] | 56.6% | 56.3% | 82.8% |
+| **13k** | 7,345 | 55.3% [54.2, 56.5] | **37** [29, 45] | 57.1% | 56.9% | 82.8% |
+| **10k** | 11,289 | 56.3% [55.4, 57.2] | **44** [38, 50] | 58.1% | 57.8% | 82.8% |
+| **7k** | 14,447 | 55.7% [54.9, 56.5] | **40** [34, 45] | 59.4% | 58.9% | 82.8% |
+| **5k** | 18,713 | 56.7% [56.0, 57.4] | **47** [42, 52] | 60.5% | 59.7% | 82.8% |
+| **3k** | 19,790 | 57.7% [57.0, 58.4] | **54** [49, 59] | 61.8% | 60.5% | 82.8% |
+| **1k** | 25,909 | 60.0% [59.4, 60.6] | **71** [66, 75] | 63.7% | 61.5% | 82.8% |
+| **1d** | 24,596 | 63.5% [62.9, 64.1] | **96** [92, 101] | 64.8% | 62.0% | 82.8% |
+| **2d** | 21,288 | 63.4% [62.8, 64.1] | **96** [91, 100] | 66.1% | 62.5% | 82.8% |
+| **4d** | 15,062 | 67.5% [66.8, 68.3] | **127** [121, 133] | 69.5% | 63.5% | 82.8% |
+| **5d** | 10,421 | 71.3% [70.4, 72.2] | **158** [151, 166] | 71.8% | 64.1% | 82.8% |
+| **6d** | 3,561 | 77.4% [76.0, 78.7] | **214** [200, 227] | 74.6% | 64.7% | 82.8% |
+
+The **20k row is excluded** as a floor artefact: it reads 70.9% against 61.8% at 19k, sharply
+off-trend, because EGF's rating floor was set at 20 kyu and everything weaker piles into that
+label. Labelle and Kaniuk independently discard everything below ~12k for the same reason. Go
+Magic's bottom tier sits exactly there, which is a limitation of *any* federation-anchored scale
+for this project, not a defect of this measurement.
+
+**Cross-check against a published source.** Kaniuk (2011) reports from the same EGD tables that a
+4k beats a 2k 35% of the time and a 2d beats a 4d 22%. This pipeline gives **35.4%** (n = 10,087)
+and **22.0%** (n = 12,325) on the pooled window.
+
+### Scoring the four published mappings
+
+Game-weighted mean absolute error against the pooled data, grades 18k–6d, gaps 1–4:
+
+| | overall | 18k–10k | 9k–1k | 1d–6d |
+|---|---|---|---|---|
+| **EGF 2021** (`β(r) = −7·ln(3300−r)`) | **3.21 pp** | **2.72** | 4.30 | **1.65** |
+| **OGS** (`525·exp(rank_idx/23.15)`) | 3.28 pp | 2.76 | **3.00** | 4.27 |
+| EGF legacy (pre-2021) | 12.78 pp | 11.93 | 15.05 | 9.38 |
+| AGA (`Φ(Δ/1.0568)`) | 23.87 pp | 28.22 | 26.17 | 15.78 |
+
+EGF-2021 and OGS are close overall and split by region: **OGS is better through the single-digit
+kyu range, EGF-2021 is much better at dan**, where OGS's curve flattens out and predicts 64.7% at
+6d against 77.4% measured. Below 10k they are indistinguishable (2.72 vs 2.76). The legacy EGF curve — still the one quoted by
+[Wikipedia](https://en.wikipedia.org/wiki/Go_ranks_and_ratings) as "71.3% for 1k vs 2k" — is off by
+13 pp, and **AGA's 83% is off by 24 pp against 675,451 games.**
+
+A second fit worth noting: François Labelle fitted [his own curve](https://wismuth.com/elo/calculator.html)
+to EGF's 2006–2015 statistics — `d(Elo)/d(GoR) ∝ (3300 − r)^−1.09`, against EGF-2021's effective
+`(3300 − r)^−1` — and the two agree to within 7% across the entire amateur range (38 vs 36
+Elo/rank at 20k, 101 vs 103 at 1d, 174 vs 186 at 6d). His motivation was the same as the
+Commission's: he calls the legacy EGF curve "not ambitious enough and… not a good fit to the EGF's
+own winning statistics."
+
+**Do not present this as independent corroboration.** Both curves use the same 3300 anchor, both
+are fitted to the same EGD games, and Labelle's page was last revised in 2021 — the year of the
+EGF revision — so which direction the 3300 travelled cannot be established from the public record.
+(His superseded formula, still commented out in the source, used 3700.) It is one measurement fitted
+twice, which is weaker than it looks: exactly the failure mode §7.3 warns about for OGS-vs-EGF.
+
+### The rating scale is not the lossy part — the rank labels are
+
+EGD also publishes a calibration table binning games by *model-predicted* `Se` and reporting the
+observed win rate. Pooled over the same windows — **1,052,934 games, 20 bins** — EGF-2021's
+game-weighted mean absolute calibration error is **0.75 percentage points**, with no bin off by
+more than 1.8.
+
+That is the distinction that makes the whole literature coherent:
+
+- **rating → win probability** is a solved problem, calibrated to under one percentage point;
+- **rank → win probability** is where the information is lost, because a rank label is a
+  quantised, noisy, level-dependent projection of the rating.
+
+The size of that loss is measurable on the ladder. Standard deviation of GoR *within* a single
+declared grade: **121 points at 20k, 95 at 10k, 45 at 1k, 50 at 1d, 41 at 3d.** A "15k" label
+carries about ±1 rank of real information; a "3d" label about ±0.4. The same table shows mild
+grade inflation — declared grades sit **10–19 GoR above** the holder's actual rating through the
+middle of the range.
+
+This also explains why the measured kyu-range numbers above are *flatter* than EGF-2021 predicts
+(55–58% observed against 56–62% modelled): the measurement is taken in grade-label space, where
+noise pulls outcomes toward 50%, while the model is calibrated in rating space. Both numbers are
+correct and they answer different questions. **Quote the grade-space numbers for what a rank label
+delivers; quote the rating-space curve for what the underlying scale is.**
+
+### The three mappings, with sources
+
+**EGF (2021, Bradley–Terry on a log-transformed rating)** — [current system doc](https://europeangodatabase.eu/docs/about/egf-rating-system)
 
 ```
 Se = 1 / (1 + exp(β(r₂) − β(r₁))),   β(r) = −7·ln(3300 − r)
 local logistic scale  a_eff = (3300 − r)/7
+con = ((3300 − r)/200)^1.6 ,  bonus = ln(1 + e^((2300 − r)/80))/5
 ```
 
-Win probability for the **stronger** player across a one-grade (100 GoR) gap, with the named rank being the weaker player:
-
-| Rank | GoR | a_eff | P(one grade) |
-|---|---|---|---|
-| 30k | −900 | 600 | 54.2 % |
-| 20k | 100 | 457 | 55.5 % |
-| 10k | 1100 | 314 | 58.1 % |
-| 1k | 2000 | 186 | 63.7 % |
-| 1d | 2100 | 171 | 64.8 % |
-| 7d | 2700 | 86 | 78.2 % |
-
-Note that "30k = −900" is a downward *extrapolation*: EGD publishes no grade labels below 20k and explicitly warns the grade↔GoR correspondence "may not work perfectly — especially for lower kyu grades." That is exactly Go Magic's bottom tier.
+Labels are linear by decree: 100 GoR per grade, 20k = 100, 1k = 2000, 1d = 2100, floor −900. The
+revision was not cosmetic — the [EGF Rating System Commission](https://www.eurogofed.org/egf/rating_system_commission.html)
+(2019–20, convenor Toby Manning) recommended new parameters explicitly *"to more accurately reflect
+the probability of winning against players of different strengths"*, and recommended moving the
+floor from 20 kyu to 30 kyu. The whole database back to 1996 was recalculated.
 
 **OGS (Glicko-2, exponential rank map)** — [rank_utils.ts](https://raw.githubusercontent.com/online-go/online-go.com/main/src/lib/rank_utils.ts), [glicko2.py](https://raw.githubusercontent.com/online-go/goratings/master/goratings/math/glicko2.py)
 
@@ -86,33 +199,114 @@ Note that "30k = −900" is a downward *extrapolation*: EGD publishes no grade l
 rating(rank_idx) = 525 · exp(rank_idx / 23.15),   rank_idx = 30 − kyu
 ```
 
-30k = 525, 25k = 652, 20k = 809, 15k = 1004, 10k = 1246, 5k = 1546, 1k = 1837, 1d = 1918. Each rank is a constant *ratio* (+4.41 %), so rating points per rank run 23 at 30k → 36 at 20k → 55 at 10k → 85 at 1d. **Total 30k→1d span: 1393 Glicko points (~46/rank), not 3000.** The Glicko-2 layer itself uses the vanilla 400-point logistic (`GLICKO2_SCALE = 173.7178`), so the exponential rank map *is* the mechanism that encodes Go's rank-dependent scale.
+30k = 525, 20k = 809, 10k = 1246, 1k = 1837, 1d = 1918. Each rank is a constant *ratio* (+4.41%),
+so points per rank run 23 at 30k → 36 at 20k → 55 at 10k → 85 at 1d; the 30k→1d span is **1,393
+Glicko points, not 3,000**. The Glicko-2 layer uses the vanilla 400-point logistic
+(`GLICKO2_SCALE = 173.7178`), so the exponential rank map *is* the mechanism encoding Go's
+rank-dependent scale. Two caveats: `MinRank = 5` floors the displayed rank at 25k, so anything
+below is extrapolation; and the pre-2021 constants were **A = 850, C = 31.25**, not the figures
+that circulate.
 
-Two caveats on OGS. `MinRank = 5` — OGS floors displayed rank at 25k, so everything below that is extrapolation past their supported range; the supported span is 25k→1d = 1266 points over 25 ranks. And the pre-2021 constants were **A = 850, C = 31.25** (`850 * Math.exp(0.032 * rank)`, step 3.25 %), not the 32.25/3.10 % figures that circulate.
+**AGA (BayRate, probit, one rank = one stone)** — [game.cpp](https://raw.githubusercontent.com/usgo/AGA-Ratings-Program/master/game.cpp), [aga-rating.txt](https://ffg.jeudego.org/echelle/aga-rating.txt)
 
-**AGA (BayRate, probit, one rank = one stone)** — [game.cpp](https://raw.githubusercontent.com/usgo/AGA-Ratings-Program/master/game.cpp), [collection.cpp](https://raw.githubusercontent.com/usgo/AGA-Ratings-Program/master/collection.cpp), [aga-rating.txt](https://ffg.jeudego.org/echelle/aga-rating.txt)
-
-`P = Φ(Δ/σ_px)` with `σ_px = 1.0649 − 0.0021976·komi + 0.00014984·komi²` → at komi 7.5, σ_px = 1.05685 → **82.8 % per rank at every level.** Critically, the AGA doc says px_sigma "was chosen … to be consistent with the model that the rating point equivalent of an n stone handicap is 100n" — so AGA's 83 % is an *imposed assumption*, not an empirical fit. That largely explains why AGA is the outlier.
-
-### Where the Elo-400 logistic is right
-
-Under EGF-2021, `a_eff = 400/ln10 = 173.72` at GoR ≈ 2084, and an exact 100-point-step match occurs at GoR ≈ 2034 — both at the 1k/1d boundary. Across the DDK range the standard scale is too narrow: the base scale you'd need to encode one rank as 100 points is 1036 at 20k and 707 at 10k, versus 400. Equivalently, one rank in true Elo-400 points is 29 at 30k, 39 at 20k, 57 at 10k, 106 at 1d.
-
-**But this is model-relative, not a fact about Go.** Under *legacy* EGF the Elo-400 crossover sits at GoR ≈ 630 ≈ 15 kyu; under AGA one rank is a flat 278 Elo-400 points everywhere. State which convention you use before claiming any compression factor.
+`P = Φ(Δ/σ_px)` with `σ_px = 1.0649 − 0.0021976·komi + 0.00014984·komi²` → 82.8% per rank at every
+level. The AGA doc states that σ_px "was chosen … to be consistent with the model that the rating
+point equivalent of an n stone handicap is 100n" — an **imposed assumption, not a fit**, which is
+why it is the outlier. It should not be treated as a competing measurement.
 
 ### Recommendation
 
-Declare OGS's map in the README, since OGS is the one production Go system running the same estimator as the simulation, fit on ≥12M ranked games ([goratings README](https://raw.githubusercontent.com/online-go/goratings/master/README.md)). Map Go Magic's three tiers onto the curve so they get ~357 / ~364 / ~537 rating points (30–18k / 18–10k / 9–1k) rather than three equal blocks. If you prefer a federation anchor, EGF's linear labels are fine for *display* but you must then carry `a_eff = (3300−r)/7` in the likelihood, not a flat 400.
+1. **Declare the scale in [`FINDINGS.md`](FINDINGS.md)** (done — see its scale table).
+2. **Keep EGF's linear labels for display** — they are what a Go audience reads, and the ladder
+   confirms they hold to within 3 points per rank.
+3. **Do not treat 100 points as a constant amount of skill.** For converting this repo's RMSE
+   figures into ranks, use the measured curve: **~40 points per rank through the kyu range, ~96 at
+   1d, 127+ above it.** "±100 points ≈ one rank" is a dan-calibrated statement and is roughly
+   **2.5× too generous at 10k**, which is where Go Magic's catalogue actually lives.
+4. **If a likelihood ever needs a Go-realistic link**, carry `a_eff = (3300 − r)/7` rather than a
+   flat 400; that is the best-supported curve at dan level and within ~3 pp elsewhere.
 
-**Do not claim that generator spacing explains the 2.3× compression.** This was in the draft research and is wrong reasoning: in a synthetic experiment the generator's spacing *is* ground truth, and a Bradley–Terry/Glicko estimator recovers whatever latent scale produced the outcomes. Real-Go miscalibration does not enter the recovery loss. Re-spacing *does* change information per attempt (outcomes further from p = 0.5), so recovery error can move — but the direction is not predictable a priori. Run it as a sensitivity check, not as a caught confound.
+Earlier drafts of this section recommended adopting OGS's exponential map outright. The
+measurement does not support that as a blanket choice: OGS is the better fit below 1k and
+materially worse above it. The reason to prefer OGS's *shape* — exponential, not linear — stands.
 
-### Genuinely unsettled
+### Not transferable to puzzles, except in shape
 
-The literature does **not** agree on what one rank is worth. Modern empirically-fitted systems say ~55 % at DDK and 62–65 % at 1d; handicap-anchored systems say 72–83 %. And a regression-discontinuity study on 895,050 KGS games (Mori, [arXiv:1606.05778](https://arxiv.org/abs/1606.05778)) measures one handicap stone at **~30 percentage points** — "Typically handicaps reduces the probability that the white wins by about 30 percent point" — which implies ~80 % per stone and supports AGA, while OGS applies handicap 1:1 in the rank domain where one rank is ~12pp. Both cannot be right if one rank = one stone. No source reconciles them.
+None of this transfers to *puzzle* difficulty semantically. Puzzles are not players; "one stone"
+has no meaning for a tsumego. What transfers is the **shape**: difficulty spacing should be roughly
+exponential in rank, not linear. And what is settled for handicap between players —
+one stone ≈ 12.5–16.5 points of territory, measured by KataGo ([Nordic Go Dojo](https://www.nordicgodojo.eu/post/8/table-values-of-handicap-stone-settings):
+first stone 6.3, then 15.2, 13.5, 16.5, 12.5, 15.5, 12.5, 16.0, 14.5) — has no puzzle analogue at
+all.
 
-What *is* settled: one stone ≈ 12.5–16.5 points of territory, measured by KataGo ([Nordic Go Dojo](https://www.nordicgodojo.eu/post/8/table-values-of-handicap-stone-settings): first stone 6.3, then 15.2, 13.5, 16.5, 12.5, 15.5, 12.5, 16.0, 14.5). Note that OGS's `12` and AGA's `13.2` are *assumptions inside rating models*, not independent measurements — so this is one measurement plus two systems that assume a value in its range.
+### What is now settled, and what is not
 
-Finally: none of this transfers to *puzzle* difficulty semantically. Puzzles are not players; "one stone" has no meaning for a tsumego. What transfers is only the **shape**: difficulty spacing should be roughly exponential in rank, not linear.
+**Settled by the measurement above:**
+
+- One rank is not a constant number of rating points. The curve rises ~5× from mid-kyu to 6d.
+- AGA's 83%-per-rank is wrong for amateur play by 24 pp and is an assumption rather than a fit.
+- The legacy EGF curve, still the most-cited figure on the public web, is wrong by 13 pp.
+- EGF-2021 predicts real outcomes from *ratings* to within 0.75 pp over a million games.
+
+**Tested here and refuted:** that grade-label noise explains the gap between measured (~60%) and
+handicap-anchored (~83%) figures. Correcting the observed win rates for the measured within-grade
+GoR scatter, by Gauss–Hermite quadrature over the label noise, moves the implied Elo-per-rank by
+only **2–4 points**. Worse, the implied value *rises* with gap size (at 1d: 96 from one-grade gaps,
+118 from four-grade gaps) — the opposite sign from what attenuation predicts. The convexity is real
+and, if anything, understated. This was previously listed here as a plausible reconciliation; it is
+not one.
+
+**Genuinely still unsettled:**
+
+1. **The handicap-stone tension.** Mori's regression discontinuity on 895,050 KGS games
+   ([arXiv:1606.05778](https://arxiv.org/abs/1606.05778)) measures one stone at ~30 percentage
+   points, implying ~80% — yet one *rank* measures 55–64% across the amateur range. Both cannot be
+   right if one rank = one stone. The EGD handicap tables narrow it: pooling the same windows,
+   when the handicap **equals** the grade difference — the nominally fair setting — the weaker
+   player wins only **40.0%** (44,250 games; 41% at one stone falling monotonically to 35% at
+   nine). So one stone per rank systematically **under**-compensates, by roughly half a stone,
+   which is the correction Go folklore has always claimed. That reduces the tension but does not
+   close it, and the first "stone" (sen, worth ~6.3 points against ~14.5 for later ones) confounds
+   the smallest and best-populated cell.
+2. **Whether EGF and OGS agreeing below 1k means anything.** They are not independent: OGS's stated
+   design goal was "to align our low dan ranks to be comparable to the EGF and AGA low dan ranks."
+   The agreement is best where both have least data.
+3. **Everything below 12 kyu.** Three independent analysts discard it. EGD's floor artefact makes
+   the 20k label uninterpretable, and the Commission's own recommendation to move the floor to 30k
+   was a political decision left to the AGM. There is no trustworthy public measurement of the
+   30k–12k range — which is precisely Go Magic's first tier.
+
+### Method, and how to reproduce it
+
+```sh
+./src/egd_scale.py --selftest   # the arithmetic and the parser, no network
+./src/egd_scale.py              # re-derive every table above (~12 min cold, then cached)
+```
+
+- **Even-game win rates**: `winning_stats.php?mode=Ajax&From=YYYY-MM-DD&To=YYYY-MM-DD` on
+  `europeangodatabase.eu`, which renders EGD's published "Winning Statistics — Even Games" table
+  (weaker player's wins and games, by declared grade and by grade gap 1–4). Queried in eleven
+  windows covering 1996–2025 — the server times out on the full range — and summed. Totals:
+  675,451 even games in the grade-gap tables, 1,052,934 in the `Se`-binned calibration tables.
+- **Ladder**: `createalleuro3.php?country=**&dgob=false`, the all-European active list, 4,983
+  players with declared grade and current GoR.
+- **Conversions**: Elo-400 points from a win rate `p` as `400·log₁₀(p/(1−p))`; Wilson intervals for
+  the win-rate CIs, propagated through that transform.
+- **One implementation trap**, guarded by a test: ranks are contiguous but their *names* are not —
+  there is no "0 kyu" between 1k and 1d. Every gap calculation runs on a contiguous index. Getting
+  this wrong corrupts exactly one row in twenty, the 1k row, which is the row the whole "100 points
+  per rank" convention is anchored to.
+
+**Caveats that bound every number in this section.**
+
+- The ladder correlation (r = 0.99 overall, 0.95–0.97 within a 10-rank band) is **partly
+  circular**: EGD initialises a new player's rating from their declared grade, and several national
+  federations assign grades from GoR. It measures bookkeeping consistency as much as reality. The
+  *scatter* and the *slope* are still informative; the correlation coefficient on its own is not.
+- Grade gaps are declared-grade gaps, so all grade-space figures are attenuated relative to true
+  strength gaps. Sizes given above.
+- This is European tournament play only: slow time controls, a self-selected population, and a
+  grade culture that differs from AGA's and from online servers'.
 
 ---
 
@@ -574,9 +768,9 @@ Estimate σ_tag by Tango's method of moments — observed variance of raw per-ta
 
 These should be stated in the work sample, not glossed. Naming them is the difference between a report and a demo.
 
-1. **What one Go rank is worth in win probability.** 55 % at DDK under OGS/EGF-2021; 62–65 % at 1d; 72 % under IGS/legacy-EGF; **83 % under AGA**. No source reconciles them. And AGA's 83 % is an imposed modelling assumption, not a fit.
-2. **The handicap-stone tension.** Mori's regression discontinuity on 895,050 KGS games measures one stone at ~30 percentage points, implying ~80 % — yet OGS applies handicap 1:1 in a rank domain where one rank is ~12pp, and claims its constants were fit to make handicap win rates consistent. Both cannot be right if one rank = one stone. Plausible explanations (measurement error attenuating fitted slopes; OGS ranks compressed relative to true stone units; the even→sen transition being only ~6 points of komi) are inference, not sourced.
-3. **Whether OGS and EGF agreeing on the DDK scale means anything.** They agree to within 1–3pp, but **not independently**: OGS's stated design goal was "to align our low dan ranks to be comparable to the EGF and AGA low dan ranks," and it benchmarks its own handicap win rate directly against EGF's. Worse, the agreement is *worst* where they calibrated (1k/1d, ~3pp) and best at 30k–10k, where EGF has almost no data and disclaims its own grade mapping — two extrapolations matching, not two measurements.
+1. ~~**What one Go rank is worth in win probability.**~~ **Now measured — see §1.** 55–58 % through the kyu range, 63.5 % at 1d, 77 % at 6d, over 675,451 EGD games. AGA's 83 % is wrong for amateur play by 24 pp and was an imposed assumption rather than a fit; the legacy-EGF 71–72 % figure still quoted on Wikipedia is wrong by 13 pp. What *remains* unsettled is the sub-12k range, where no trustworthy public measurement exists — and that is Go Magic's first tier.
+2. **The handicap-stone tension.** Mori's regression discontinuity on 895,050 KGS games measures one stone at ~30 percentage points, implying ~80 % — yet §1 measures one *rank* at 55–64 % across the amateur range. Both cannot be right if one rank = one stone. §1 narrows the gap: at the nominally fair setting (handicap = grade difference) the weaker player wins only **40.0 %** over 44,250 games, so one stone per rank under-compensates by roughly half a stone. It does not close it. Note that the previously-listed explanation — measurement error attenuating the fitted slopes — has now been **tested and refuted** in §1.
+3. **Whether OGS and EGF agreeing on the DDK scale means anything.** They agree to within 1–3pp, but **not independently**: OGS's stated design goal was "to align our low dan ranks to be comparable to the EGF and AGA low dan ranks," and it benchmarks its own handicap win rate directly against EGF's. The agreement is best where both have least data. §1 checked whether Labelle's separate curve breaks the circle and concluded it does not: it lands within 7 % of EGF-2021 but shares the same 3300 anchor and the same underlying games, and the direction of borrowing cannot be established. **Every curve in this literature is fitted to EGD.** A genuinely independent check would need a second federation's raw game records.
 4. **The exact RD threshold for excluding a solver from item updates.** RD ≥ 230 is a Lichess engineering constant with no published derivation anywhere.
 5. **Ranger's exact information bound.** The boundedness is proven; the `ρ²/(1−ρ²)` formula is derivable but not attributable.
 6. **Whether puzzle-solving is compensatory or non-compensatory in Go.** The misspecification literature's own recommendation is to decide on substantive theory rather than fit indices — and notes the two models converge when skills are correlated, which is the expected Go regime.
@@ -594,7 +788,7 @@ Cheapest-and-most-defensible first. Each step is independently reportable.
 
 | # | Step | Cost | Why it earns its place |
 |---|---|---|---|
-| 1 | **Declare the scale.** Put OGS's `525·exp(rank/23.15)` (or EGF labels + `a_eff`) in [`FINDINGS.md`](FINDINGS.md), with the tier spans. | ~1 hour | Nothing downstream means anything without it, and a Go company will check. |
+| 1 | **Declare the scale.** *Done.* [`FINDINGS.md`](FINDINGS.md) now carries the measured curve from §1 — EGF labels for display, ~40 points per rank through the kyu range rising to ~96 at 1d — with the tier spans. | done | Nothing downstream means anything without it, and a Go company will check. |
 | 2 | **RTE / median-RT data hygiene.** Rapid-guess floor, idle-tab ceiling, `log2(t/median_item)`. | ~1 day | Improves difficulty estimates through preprocessing alone. No new model. Fully defensible in an interview. |
 | 3 | **Seed player priors from Go Diagnostics** (RD ≈ 80–90 rather than 350) and run the A/B against the flat prior. | ~1 day | Uses a product they already own; worth ~15 attempts of free information per player. |
 | 4 | **Add Go Diagnostics items as ungated anchors** to the simulation; sweep the anchor count and plot slope → 1.0. | ~2 days | This directly attacks the λ₂ / scale-compression finding. If a handful of ungated items collapses the 2.36 slope, that is the headline result of the whole repo — and it is an actionable product recommendation, not just a measurement one. |
@@ -624,7 +818,7 @@ particular the fourth, which prescribes a gate this repo has already measured as
 - **The free item-side prior is ignored.** The brief argues hard for informative *player* priors (Go Diagnostics, §2a) and never once proposes using Go Magic's existing 11-level hand labels as the informative prior on `d_p`. That reframes the hand label from "thing to replace" to "prior to shrink away from as traffic accrues", handles the starved tail, and is a one-line change to `batch_fit.py`. Biggest missed recommendation in the document.
 - **Recommendation 2(d) contradicts the repo's own measurement.** "Publish difficulty when RD < 52 / 87" — but `docs/METHOD.md` §7 and TODO.md already found RD is *not* a safe readiness gate under gating: ~77 points of reported uncertainty against ~287 points of realised error. The brief prescribes exactly the gate the repo flagged as unsafe, with no calibration step. Either drop it or condition it on the ungated instrument's RD.
 - **Uneven traffic ([`FINDINGS.md`](FINDINGS.md) §7) appears nowhere in the brief.** The funnel costs 40–50 RMSE points and collapses gated ρ from 0.94 → 0.78 — as expensive as gating itself. Every per-tag recommendation assumes "high per-tag volume for a 10,160-puzzle bank"; under the measured funnel most tags have a starved tail and the Feinberg–Wainer / Sinharay "≥20 items" bar fails for most players. The §3 and §6 recommendations are never re-checked under funnelled traffic.
-- **Q6 is answered as a literature question, not as a project question.** Adopting `525·exp(rank/23.15)` invalidates the units of every table in [`FINDINGS.md`](FINDINGS.md): the ±100 "one rank" target becomes 23 points at 30k and 85 at 1d, the 467 no-information ceiling changes meaning, and "slope 2.36" is only interpretable against a stated map. The brief says "declare the scale" but never says whether the planted population and the published tables must be restated, nor what the 2.3× compression becomes in OGS units. That is the actual unanswered question.
+- **Q6 was answered as a literature question, not as a project question.** *Partly addressed:* §1 is now a measurement rather than a survey, and the scale is declared in [`FINDINGS.md`](FINDINGS.md). But the project question the critique names is still open, and is now sharper rather than softer: on the measured curve the ±100 "one rank" target is ~2.5 ranks at 10k and ~1 rank at 1d, so every rank-denominated figure in [`FINDINGS.md`](FINDINGS.md) is a dan-calibrated lower bound. What remains undecided is whether the planted population and the published tables should be **restated** on the measured curve, and what the 2.36× compression figure becomes in those units. Tracked in [`TODO.md`](../TODO.md).
 - **"PvP edges are the highest-value fix for the gating penalty" is unsupported and outranked by the repo's own numbers.** Measured fixes: joint refit −61% (free), linking items −57 to −188 RMSE with dose-response. PvP is unmeasured, requires a product Go Magic does not have, and the brief's own §5 build item is 2 days of simulation. Calling it highest-value is an overclaim against measured alternatives.
 - **The Ford/Bong–Rinaldo identifiability framing is probably the wrong theorem.** A ±300 band is *banded*, not block-diagonal — adjacent tiers share solvers, so the graph is connected and the MLE exists. The repo confirms this: gated error falls steadily at ~28 points per doubling out to 1,280 attempts. The pathology is ill-conditioning / low Fisher information along the scale direction, not non-identifiability, yet the brief quotes "no amount of data will be able to resolve" verbatim. λ₂ is the right intuition; the citation attached to it is not.
 - **Single-weak-source claims that are load-bearing:** (a) the Lichess puzzle↔game slope 0.62 — one community blog post, author-flagged selection bias, no date or primary link — yet it is the concrete number the §5 falsification test is calibrated against; (b) the "10–30 %" RT budget, extrapolated from one 20 % simulation figure (ρ=.75, N=300) and then quoted verbatim as a headline line to include in the write-up; (c) Sackmann's clay row, one blog post with no CIs, called "the most persuasive artifact in this entire literature"; (d) the Nordic Go Dojo blog as the sole source for what the brief calls *settled* about stone value; (e) Mori's unpublished preprint carrying the whole handicap tension.
@@ -671,14 +865,17 @@ predicts *handicap fairness*, not win probability, and that the relation is roug
 a 20k beats a 19k about 38% of the time (so the stronger wins ~62%), while a 6d beats a 7d only
 about 20% (the stronger wins ~80%).
 
-| one-rank gap | this interview | EGF 2021 model (§1) |
-|---|---|---|
-| at 20 kyu | ~62% | 55.5% |
-| at 7 dan | ~80% | 78.2% |
+| one-rank gap | this interview | EGF 2021 model | **measured (§1)** |
+|---|---|---|---|
+| at high kyu | ~62% | 55.5% | **61.8%** (19k, n = 5,331) |
+| at high dan | ~80% | 78.2% | **77.4%** (6d, n = 3,561) |
 
-They agree closely at the dan end and diverge ~6.5 points at the kyu end — which is precisely where
-§1 flags EGF's grade↔GoR correspondence as an unsupported downward extrapolation. A third
-independent source that **"±100 points ≈ one rank" is dan-calibrated and generous below it.**
+The interview matches the *measurement* at both ends — within 0.2 points at the kyu end and 2.6 at
+the dan end — better than either matches the model. Note the row label: the measured high-kyu
+figure is 19k, not 20k, because 20k is EGD's rating floor and reads a spurious 70.9% (§1). The
+interviewee's "38% for the weaker player" is very nearly exactly what the 19k data says (38.2%).
+A third independent source that **"±100 points ≈ one rank" is dan-calibrated and generous below
+it** — and, now, a check that lands on the data rather than on the model.
 
 **Non-transitivity.** Listed as a known limitation: three equally-rated players can form a win
 cycle, because style matchups exist and a single latent trait cannot express them. That is the

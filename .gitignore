@@ -9,6 +9,10 @@ out/*.html
 # are CC BY-NC-SA / OPL and cannot be redistributed under this repo's MIT licence.
 out/collection/
 
+# EGD responses cached by src/egd_scale.py. Not committed: it is the European Go Federation's
+# data, and the script re-fetches it on demand.
+out/egd/
+
 # The one-page deliverable is committed, like recovery.png; any other rendered PDF is scratch.
 out/*.pdf
 !out/onepager.pdf

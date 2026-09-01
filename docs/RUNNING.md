@@ -13,7 +13,17 @@ included.
 ./src/batch_fit.py --puzzles 300 --reps 10               # §4  online vs joint fit, on the same log
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 --linking 0.25 0.5 1.0 --out /tmp/linking.png  # §5
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 160 --funnel 0.02 --out /tmp/funnel.png       # §7
+./src/egd_scale.py --selftest                            #     the rank-scale arithmetic, no network
+./src/egd_scale.py                                       #     re-measure what one rank is worth, from EGD
 ```
+
+`egd_scale.py` is the odd one out: it measures real Go, not the simulation. It re-derives every
+number in [`RESEARCH.md`](RESEARCH.md) §1 from the European Go Database's published statistics —
+the ~675k-game even-game tables, the ~1.05M-game calibration table, and the active ladder. A cold
+run takes ~12 minutes, because each of the eleven windows is a server-side aggregate that EGD needs
+about a minute for, fetched sequentially to stay polite. Responses cache under `out/egd/` and are
+not committed. EGD is live, so counts grow slowly over time; the figures quoted in the docs were
+taken on 2026-09-01.
 
 Each script carries its own [PEP 723](https://peps.python.org/pep-0723/) inline dependency header,
 so `uv` resolves what it needs on the spot — **there is no environment to set up and no checkout
@@ -61,6 +71,7 @@ src/recovery.py         the planted world, the attempt log, online fitting, scor
 src/batch_fit.py        joint Rasch MAP refit of the same log, to test the online artefact
 src/parse_tree.py       public skill-tree parser
 src/build_collection.py fetches openly-licensed Go problems onto the 3x5 grid (content untracked)
+src/egd_scale.py        measures what one Go rank is worth, from EGD (responses untracked)
 tests/                  Glickman's worked example, the clamps, and the pinned tree inventory
 data/                   the public page snapshot, the problem-source audit, the taxonomy map
 docs/build.py           renders METHOD.md into out/method.html (a reading view)

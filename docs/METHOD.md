@@ -60,6 +60,7 @@ Everything is on one scale, and it is worth fixing the conversions before any nu
 | the scale constant | 400 points = 10-to-1 odds. A 200-point advantage is a 76% win rate; 400 points is 91% |
 | Go ranks | **100 rating points per rank, 1d = 2100** — so 1k = 2000 and 20k = 100, the EGF nominal convention |
 | the accuracy target | **±100 points ≈ one rank.** A label off by 300 points is off by three ranks, which is a different puzzle |
+| …and what that is worth | The nominal rank is a *label*. Measured over 675,451 EGD games, one rank is worth **96 Elo points at 1d but only ~40 through the kyu range** ([`RESEARCH.md`](RESEARCH.md) §1), so read every rank figure below as a **dan-calibrated lower bound** |
 | the no-information ceiling | **RMSE 467**, the planted population's own sd. An estimator that guesses the mean for every puzzle scores this, so 440 is not "poor", it is "nothing learned" |
 
 So read every error figure in this document as "how many ranks off is a typical label".
@@ -981,9 +982,12 @@ fixed in section 1 — 100 points per rank, 1d at 2100 — that population is:
 bugs.** Their tree spans 30k–1d, so the planted world is *stronger at the top* — about 10% of
 planted puzzles land above 1d, harder than any puzzle they have — and it never reaches the 30k
 floor where the tree's first tier lives. And the linear rank map is least faithful exactly there:
-real Go ranks are compressed at high kyu (EGF's own system is deliberately non-linear), so the gap
-between 25k and 24k is far less strength than between 2k and 1k, while this simulation treats them
-as equal.
+real Go ranks are compressed at high kyu, so the gap between 25k and 24k is far less strength than
+between 2k and 1k, while this simulation treats them as equal. That compression is measured, not
+assumed — across 675,451 European tournament games one rank is worth ~40 rating points in the kyu
+range against 96 at 1d, a factor of 2.4 ([`RESEARCH.md`](RESEARCH.md) §1). The honest caveat is
+that the measurement itself runs out below about 12 kyu: EGF's rating floor at 20k corrupts the
+weakest labels, and no public dataset covers 30k–12k — which is exactly the tier in question.
 
 Neither touches the estimator, which never sees a rank. Both mean the planted population is a
 stylised Go population rather than Go Magic's, and a like-for-like number would need their

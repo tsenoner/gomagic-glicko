@@ -11,7 +11,8 @@ Go Magic assigns difficulty by hand — a static 11-level table, one judgement p
 **10,160 puzzles** (their own counter, August 2026), never revised by the millions of attempts
 already in their database. This repo simulates the replacement: a solve treated as a Glicko-2 game
 between player and puzzle, scored against a planted ground truth. Recovery error is in rating
-points, where **100 ≈ one rank** and **467 = nothing learned**; 300 puzzles, 3,000 players,
+points, where **100 ≈ one rank** (measured: exact at 1d, generous below) and
+**467 = nothing learned**; 300 puzzles, 3,000 players,
 10 planted worlds, 95% CIs.
 
 | attempts/puzzle | random pairing | gated (skill tree) | gated, refit jointly |
@@ -42,6 +43,7 @@ that comes *before* that one. Nothing here uses private data; only the skill tre
 ```sh
 ./tests/test_glicko2.py                     # validate the estimator (Glickman's worked example)
 ./src/recovery.py --puzzles 300 --reps 10   # reproduce the gated-vs-random rows
+./src/egd_scale.py                          # measure what one Go rank is worth, from 675k EGD games
 ```
 
 Each script carries a [PEP 723](https://peps.python.org/pep-0723/) header, so `uv` resolves its

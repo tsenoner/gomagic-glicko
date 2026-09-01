@@ -49,6 +49,12 @@ jobs:
       - name: Validate the problem-source manifest
         run: ./src/build_collection.py --list
 
+      # --selftest is the no-network half of egd_scale.py: the rank-index arithmetic (which has a
+      # hole where "0 kyu" would be), the win-probability models, the noise quadrature, and a
+      # positional-parser guard on a known row of EGD's fixed-width table.
+      - name: Check the rank-scale arithmetic and parser
+        run: ./src/egd_scale.py --selftest
+
       - name: Smoke-run the experiments
         run: |
           ./src/recovery.py --quick --out /tmp/recovery.png
