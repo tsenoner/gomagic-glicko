@@ -10,11 +10,11 @@ body {
 }
 h1 { font-size: 17.5pt; line-height: 1.1; margin: 0 0 1.5mm; letter-spacing: -0.2pt; }
 .sub { font-size: 9.9pt; color: #4a5058; margin: 0 0 3mm; font-style: italic; }
-.rule { height: 2px; background: #16181d; margin: 0 0 4.4mm; }
-.setup { font-size: 8.8pt; line-height: 1.45; color: #2b3038; margin: 0 0 4.2mm; }
+.rule { height: 2px; background: #16181d; margin: 0 0 3.8mm; }
+.setup { font-size: 8.8pt; line-height: 1.42; color: #2b3038; margin: 0 0 3.6mm; }
 .finding {
   border-left: 3px solid #b8321e; background: #fbf7f5;
-  padding: 3.2mm 4mm; margin: 0 0 4.4mm;
+  padding: 2.8mm 3.6mm; margin: 0 0 3.8mm;
 }
 .finding .lead { font-size: 10.7pt; line-height: 1.34; margin: 0; font-weight: 600; }
 .finding .note { font-size: 8.35pt; color: #4a5058; margin: 1.6mm 0 0; }
@@ -29,8 +29,8 @@ h2 {
 /* The chart is 7.5:5.6, so at full width it would eat half the page. Pairing it with the
    findings recovers the right-hand column and keeps everything above the fold; the two columns
    are sized so the figure and the results block finish at about the same height. */
-.split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 5mm; margin: 0 0 4.4mm; }
-.stack > div + div { margin-top: 3mm; }
+.split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 5mm; margin: 0 0 3.8mm; }
+.stack > div + div { margin-top: 2.6mm; }
 .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4.5mm; }
 .cols h3, .stack h3 {
   font-family: -apple-system, "Helvetica Neue", sans-serif;
@@ -38,34 +38,34 @@ h2 {
 }
 .cols p, .stack p { margin: 0; font-size: 8.45pt; line-height: 1.36; color: #2b3038; }
 table.mini {
-  border-collapse: collapse; width: 100%; margin-top: 2.6mm;
+  border-collapse: collapse; width: 100%; margin-top: 2.2mm;
   font-variant-numeric: tabular-nums; font-size: 8.15pt;
 }
-table.mini th, table.mini td { padding: 0.9mm 1.2mm; text-align: right; }
+table.mini th, table.mini td { padding: 0.75mm 1.2mm; text-align: right; }
 table.mini thead th {
   font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 7.1pt; font-weight: 700;
   color: #5c636c; border-bottom: 1px solid #16181d; line-height: 1.2;
 }
 table.mini tbody td { border-bottom: 1px solid #e4e7ea; }
-table.mini th:first-child, table.mini td:first-child { text-align: left; width: 31%; }
-table.mini th:not(:first-child), table.mini td:not(:first-child) { width: 23%; }
+table.mini th:first-child, table.mini td:first-child { text-align: left; width: 40%; }
+table.mini th:not(:first-child), table.mini td:not(:first-child) { width: 20%; }
 table.mini td.win { font-weight: 700; color: #b8321e; }
 .tnote { font-size: 7.1pt; color: #5c636c; margin: 1.1mm 0 0; line-height: 1.32; }
 /* Sits in the figure column under the caption, where the taller right-hand column leaves room:
    the two commands behind the page are worth more there than white space. */
 .repro {
   font-size: 7.6pt; line-height: 1.4; color: #5c636c;
-  border-top: 1px solid #e4e7ea; margin: 3.4mm 0 0; padding-top: 1.8mm;
+  border-top: 1px solid #e4e7ea; margin: 2.8mm 0 0; padding-top: 1.6mm;
 }
 .repro strong { color: #16181d; }
 .num { font-variant-numeric: tabular-nums; font-weight: 700; color: #b8321e; }
 .caveat {
-  border: 1px solid #d8dce1; padding: 3mm 3.6mm; margin: 4.4mm 0 0;
+  border: 1px solid #d8dce1; padding: 2.6mm 3.2mm; margin: 3.8mm 0 0;
   font-size: 8.55pt; line-height: 1.4; color: #2b3038;
 }
 .caveat strong { color: #16181d; }
 footer {
-  margin-top: 4.4mm; padding-top: 2.4mm; border-top: 1px solid #d8dce1;
+  margin-top: 3.6mm; padding-top: 2.2mm; border-top: 1px solid #d8dce1;
   font-family: -apple-system, "Helvetica Neue", sans-serif;
   font-size: 7.5pt; color: #5c636c; display: flex; justify-content: space-between;
 }

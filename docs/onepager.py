@@ -76,7 +76,10 @@ instead of assigning it by hand?</p>
 
 <p class="setup"><strong>What I did.</strong> Plant 300 puzzles and 3,000 players with known
 difficulties and skills. Simulate their first-attempt logs under three exposure patterns; the one
-modelling Go Magic is skill-tree gating, where a player meets only puzzles near their own level. Fit Glicko-2 with the truth hidden, then score the fitted difficulties against it. Scale:
+modelling Go Magic is skill-tree gating, where a player meets only puzzles near their own level.
+Fit each log twice with the truth hidden: online, one attempt at a time as a live system runs
+Glicko-2, and jointly, one fit over the whole log. Score both against the planted difficulties.
+Scale:
 <strong>&plusmn;100 points &asymp; one Go rank</strong> (EGF convention, accurate at 1d and
 generous below); assigning every puzzle the same difficulty scores 467.</p>
 
@@ -93,15 +96,15 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
 <div class="split">
   <figure>
     <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle">
-    <figcaption><strong>Online Glicko-2 under three exposure patterns:</strong> ungated random
-    pairing (a diagnostic test), skill-tree gating as implied by Go Magic's public tree, and gating
-    with 10% of traffic ungated. Dotted line is one-rank accuracy; bands are 95% intervals over ten
-    planted worlds.</figcaption>
+    <figcaption><strong>Two exposure patterns, two estimators.</strong> Colour is the data:
+    ungated random pairing against skill-tree gating as implied by Go Magic's public tree, green
+    adding 10% ungated traffic. Line style is the estimator: solid online, dashed the same log
+    refit jointly. Dotted line is one-rank accuracy; bands are 95% intervals over ten
+    worlds.</figcaption>
     <p class="repro"><strong>Reproduce.</strong>
-    <code>./src/recovery.py --puzzles 300 --reps 10</code> draws the curves;
-    <code>./src/batch_fit.py</code> refits the identical log jointly. Every other number here is one
-    command in <code>docs/RUNNING.md</code>; the estimator is checked against Glickman's worked
-    example.</p>
+    <code>./src/recovery.py --puzzles 300 --reps 10</code> draws every curve here. Other numbers are
+    one command each in <code>docs/RUNNING.md</code>; the estimator is checked against Glickman's
+    worked example.</p>
   </figure>
   <div>
     <h2>Three results</h2>
@@ -111,13 +114,14 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
         <p>Under gating no attempt directly compares an easy puzzle with a hard one:
         <span class="num">1.6&times;</span> the error at 10 first attempts per puzzle,
         <span class="num">2.7&times;</span> at 160, and a smaller check holds ~2.8&times; out to
-        1,280. Traffic does not close it.</p>
+        1,280. Neither more traffic nor a better estimator closes it: refit jointly, a residual
+        <span class="num">1.75&times;</span> remains.</p>
       </div>
       <div>
         <h3>The damage is to the spacing, not the ordering</h3>
-        <p>At 160 attempts the fit still ranks puzzles well (Spearman
-        <span class="num">0.94</span>), but compresses the scale to under half its width. It knows
-        <em>which</em> puzzle is harder, not <em>by how much</em>. Compression is repairable.</p>
+        <p>At 160 attempts the gated fit ranks puzzles well but compresses the scale to under
+        half its width: it knows <em>which</em> puzzle is harder, not <em>by how much</em>.
+        Compression is repairable.</p>
       </div>
       <div>
         <h3>Uneven traffic is a second, separate cost</h3>
@@ -128,19 +132,20 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
     </div>
     <table class="mini">
       <thead><tr>
-        <th>first attempts<br>per puzzle</th><th>ungated</th>
-        <th>gated,<br>online</th><th>gated,<br>joint fit</th>
+        <th>at 160 first<br>attempts</th><th>RMSE</th>
+        <th>fitted<br>scale</th><th>&rho;</th>
       </tr></thead>
       <tbody>
-        <tr><td>10</td><td>250</td><td>408</td><td>388</td></tr>
-        <tr><td>40</td><td>167</td><td>355</td><td>252</td></tr>
-        <tr><td>160</td><td>107</td><td>287</td><td class="win">112</td></tr>
+        <tr><td>ungated, online</td><td>107</td><td>1.20</td><td>0.99</td></tr>
+        <tr><td>ungated, joint</td><td>64</td><td>1.09</td><td>0.99</td></tr>
+        <tr><td>gated, online</td><td>287</td><td>2.36</td><td>0.94</td></tr>
+        <tr><td>gated, joint</td><td class="win">112</td><td class="win">1.30</td><td>1.00</td></tr>
       </tbody>
     </table>
-    <p class="tnote">RMSE in rating points, mean offset removed, since neither estimator fixes an
-    origin (&plusmn;100 &asymp; one rank). Ten planted worlds; the last two columns fit the
-    identical log, so only the estimator differs. 95% intervals &plusmn;3&ndash;8; every contrast
-    significant.</p>
+    <p class="tnote">RMSE in rating points, mean offset removed (&plusmn;100 &asymp; one rank).
+    Fitted scale is the slope onto the planted truth: 1.0 is right, 2.36 means the spread is
+    2.36&times; too narrow. &rho; is rank correlation, over ten worlds; within a regime both rows
+    fit the identical log.</p>
   </div>
 </div>
 
@@ -169,8 +174,8 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
   <strong>What this does not claim.</strong> Not that any hand-assigned label is wrong; testing
   that needs the private attempt log. It answers the prior question: if difficulty were
   measured from attempts, how much data would the answer need to mean anything? That depends only
-  on the estimator and the <em>shape</em> of the data, so simulation settles it, and nothing here
-  uses private data.
+  on the estimator and the <em>shape</em> of the data, so simulation settles it. No private data
+  is used.
   <br><br>
   <strong>The next step is small:</strong> run the joint fit over one month of the real log, first
   attempts only, and check the recovery curve against it.

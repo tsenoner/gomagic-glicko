@@ -9,7 +9,7 @@ included.
 ./src/parse_tree.py --html data/skilltree-2026-08-16.html # §1  the inventory, offline from the snapshot
 ./src/parse_tree.py --json out/tree.json                 # §1  or fetch the live public page
 ./src/recovery.py --quick                                #     fast sweep, for iterating
-./src/recovery.py --puzzles 300 --reps 10                # §3  gated vs random; writes out/recovery.png
+./src/recovery.py --puzzles 300 --reps 10                # §3  gated vs random, online and joint; writes out/recovery.png
 ./src/batch_fit.py --puzzles 300 --reps 10               # §4  online vs joint fit, on the same log
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 --linking 0.25 0.5 1.0 --out /tmp/linking.png  # §5
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 160 --funnel 0.02 --out /tmp/funnel.png       # §7
@@ -31,6 +31,10 @@ required to run one file.**
 
 ## Three things to know before changing the flags
 
+- **The joint refit rides along.** The default run also fits each gated and ungated log jointly,
+  which is what the dashed curves are and what makes the chart carry section 4 as well as section
+  3. It roughly triples the runtime, to about 50 seconds; `--no-joint` skips it. The rows it prints
+  match `batch_fit.py` digit for digit, since both call the same `fit` on the same log.
 - **`--reps` drives the confidence intervals.** Below 2 they are undefined; 10 is what every
   published table uses, and the cost is linear.
 - **`--sweep` takes the attempts-per-puzzle points directly.** Read its `--help` before pushing past

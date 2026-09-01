@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["matplotlib>=3.8"]
+# dependencies = ["matplotlib>=3.8", "numpy>=1.26"]
 # ///
 """
 How many attempts does it take to *measure* a puzzle's difficulty?
@@ -10,6 +10,7 @@ How many attempts does it take to *measure* a puzzle's difficulty?
     ./recovery.py --quick                # fewer reps, for iterating
     ./recovery.py --puzzles 500 --players 2000
     ./recovery.py --linking 0.25 0.5 1.0 # the linking-item dose-response
+    ./recovery.py --no-joint             # online curves only; skips the joint refit
 
 What this does and does not claim
 ---------------------------------
@@ -31,6 +32,13 @@ near their own level, and the attempt matrix is *banded* rather than dense. Rest
 is the classic way an estimate like this degrades, so the sweep runs both regimes and reports the
 difference. If banded selection needs materially more data, that is a design constraint on any
 adaptive-difficulty feature, not a detail.
+
+The dashed curve
+----------------
+Online Glicko-2 is what a live system runs, but it is not the only way to read a log that already
+exists. The dashed curve refits the *identical* gated log jointly — `batch_fit.fit`, a Rasch MAP
+fit over every attempt at once — so the gap between the two red curves is the estimator and
+nothing else. `batch_fit.py` prints the same contrast with both error metrics; this draws it.
 
 Two error numbers, and why both are reported
 --------------------------------------------
@@ -393,6 +401,8 @@ def main() -> None:
                     help="attempts-per-puzzle points to run. Past ~160 at 3000 players the band "
                          "cannot fill the request and make_log's nearest-N fallback silently "
                          "ungates the sim — scale --players with it or the regime stops being gated")
+    ap.add_argument("--no-joint", action="store_true",
+                    help="skip the joint MAP refit of the gated log (the dashed curve)")
     ap.add_argument("--seed", type=int, default=20260816)
     ap.add_argument("--out", type=Path, default=Path("out/recovery.png"))
     args = ap.parse_args()
@@ -413,11 +423,21 @@ def main() -> None:
     regimes = [("random", False, 0.0), ("banded", True, 0.0)]
     regimes += [(f"banded+{f:.0%} link", True, f) for f in args.linking]
     names = [r[0] for r in regimes]
+    # batch_fit imports this module at its top, so the import is taken here rather than at module
+    # scope: by then `recovery` is fully initialised and the cycle cannot bite.
+    joint_fit = None
+    if not args.no_joint:
+        from batch_fit import fit as joint_fit
+    # A joint twin for each pure regime, so the figure reads as a 2x2: colour is the data
+    # (gated or not), line style the estimator. Without the ungated twin the crossing at the
+    # right-hand end invites the wrong reading — that a joint fit erases the gating penalty,
+    # when what it erases is most of the *online* penalty (docs/FINDINGS.md §4).
+    JOINTS = {"random": "random joint", "banded": "banded joint"}
     if len(set(names)) != len(names):
         # Names key both the results and the printed contrasts; a collision would silently
         # interleave two regimes into one plotted curve.
         ap.error("two --linking fractions round to the same percent label; use distinct values")
-    width = max(len(nm) for nm in names)
+    width = max(len(nm) for nm in names + (list(JOINTS.values()) if joint_fit else []))
 
     print(f"\n  {args.puzzles} puzzles, {args.players} players, {reps} rep(s) per point, "
           f"band {args.band:.0f}"
@@ -431,15 +451,26 @@ def main() -> None:
     print(f"  {'-'*8}  {'-'*width}  {'-'*17}  {'-'*9}  {'-'*5}  {'-'*5}  {'-'*5}")
 
     results: dict[str, list[tuple[int, float, float]]] = {nm: [] for nm in names}
+    if joint_fit:
+        results.update({nm: [] for nm in JOINTS.values()})
     for n in sweep:
         per_regime: dict[str, list[float]] = {}
         flat_twin: dict[str, list[float]] = {}
         for regime, banded, linking in regimes:
-            scores = []
+            scores, joint_scores = [], []
             for r in range(reps):
-                pz, _ = simulate(worlds[r], n, banded, log_rng(args.seed, r, n), band=args.band,
-                                 linking=linking, funnel=args.funnel)
+                # `simulate` inlined, so the joint fit can be handed the same list of attempts the
+                # online estimator just consumed rather than an identically-seeded redraw.
+                log = make_log(worlds[r], n, banded, log_rng(args.seed, r, n),
+                               band=args.band, linking=linking, funnel=args.funnel)
+                pz, _ = replay(log, args.players, args.puzzles)
                 scores.append(score(pz, worlds[r].puzzles))
+                if joint_fit and regime in JOINTS:
+                    _, beta = joint_fit(log, args.players, args.puzzles)
+                    # Scored on the puzzles the log touches, which is the subset `score` keeps.
+                    seen = sorted({zi for _, zi, _ in log})
+                    joint_scores.append(score_values([float(beta[i]) for i in seen],
+                                                     [worlds[r].puzzles[i] for i in seen]))
             if args.funnel < 1.0 and reps >= 2:
                 # The flat twin: the same regime, worlds and log stream at funnel 1.0, so the
                 # funnel-vs-flat cost printed below is a paired contrast this one command
@@ -460,6 +491,19 @@ def main() -> None:
                   f"{mean([s.rho for s in scores]):>5.2f}")
             results[regime].append((n, off, half))
 
+            if joint_scores:
+                joint_nm = JOINTS[regime]
+                j_offs = [x.rmse_offset for x in joint_scores]
+                per_regime[joint_nm] = j_offs
+                j_off, j_half = ci95(j_offs)
+                j_cell = f"{j_off:>9.1f} ± {j_half:>5.1f}" if j_half == j_half else f"{j_off:.1f}"
+                print(f"  {n:>8}  {joint_nm:<{width}}  {j_cell:>17}  "
+                      f"{mean([x.rmse_affine for x in joint_scores]):>9.1f}  "
+                      f"{mean([x.slope for x in joint_scores]):>5.2f}  "
+                      f"{mean([x.within_100 for x in joint_scores]):>4.0%}  "
+                      f"{mean([x.rho for x in joint_scores]):>5.2f}")
+                results[joint_nm].append((n, j_off, j_half))
+
         # Paired contrasts. These, not the per-regime intervals above, are what the claims rest on:
         # the regimes share a world and an rng stream, so the difference is far better resolved
         # than either mean. Reported only where a contrast has a defined interval.
@@ -469,6 +513,11 @@ def main() -> None:
             for a, b in contrasts:
                 print(f"  {'':>8}  paired {a} − {b}: "
                       f"{contrast_str(per_regime[a], per_regime[b])}")
+            for base, joint_nm in JOINTS.items():
+                # Paired twice over: same world, same log, only the estimator differs.
+                if joint_nm in per_regime:
+                    print(f"  {'':>8}  paired {joint_nm} − {base}: "
+                          f"{contrast_str(per_regime[joint_nm], per_regime[base])}")
             for regime, flat_offs in flat_twin.items():
                 print(f"  {'':>8}  paired {regime} funnel − flat: "
                       f"{contrast_str(per_regime[regime], flat_offs)}")
@@ -491,19 +540,21 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     from matplotlib.ticker import NullLocator
 
     fig, ax = plt.subplots(figsize=(7.5, 5.6), dpi=160)
-    fixed = {"random": ("#2563eb", "o", "ungated (random pairing)"),
-             "banded": ("#dc2626", "s", "gated (skill tree)")}
+    fixed = {"random": ("#2563eb", "o", "-", "ungated (random pairing)"),
+             "banded": ("#dc2626", "s", "-", "gated (skill tree)"),
+             "banded joint": ("#dc2626", "D", "--", "gated, refit jointly"),
+             "random joint": ("#2563eb", "D", "--", "ungated, refit jointly")}
     greens = ["#16a34a", "#0d9488", "#4d7c0f", "#065f46"]
 
     linked = 0
     for regime, pts in results.items():
         if regime in fixed:
-            colour, marker, label = fixed[regime]
+            colour, marker, style, label = fixed[regime]
         else:
-            colour, marker, label = greens[linked % len(greens)], "^", _legend(regime)
+            colour, marker, style, label = greens[linked % len(greens)], "^", "-", _legend(regime)
             linked += 1
         xs, ys, halves = [p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts]
-        ax.plot(xs, ys, marker=marker, color=colour, lw=2, ms=5, label=label)
+        ax.plot(xs, ys, marker=marker, ls=style, color=colour, lw=2, ms=5, label=label)
         # The band is the 95% interval on each regime's own mean. It is not the interval for the
         # gap between two regimes — that one is paired, printed rather than drawn, and not
         # reliably narrower than these bands suggest (see `paired_ci95`). Overlapping bands here
@@ -529,7 +580,8 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     ax.axhline(100, color="#64748b", ls=":", lw=1)
     ax.text(ax.get_xlim()[0] * 1.05, 104, "±100 points ≈ one Go rank", fontsize=9, color="#64748b")
     ax.grid(alpha=0.25, which="both")
-    ax.legend(frameon=False, fontsize=10.5)
+    # Pinned, not "best": with five curves matplotlib parks it over the one-rank annotation.
+    ax.legend(frameon=False, fontsize=10, loc="upper right")
     ax.spines[["top", "right"]].set_visible(False)
     fig.text(0.01, 0.01,
              f"simulation: {n_puzzles} puzzles, {n_players} players, {reps} reps"

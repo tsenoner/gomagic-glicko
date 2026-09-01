@@ -1890,8 +1890,12 @@ with it or the regime stops being gated.
 
 ### The figure
 
-`./src/recovery.py --puzzles 300 --reps 10` writes `out/recovery.png`: the three RMSE(off) curves
-against log attempts, with the 100-point one-rank line marked and a shaded 95% band per curve. It
+`./src/recovery.py --puzzles 300 --reps 10` writes `out/recovery.png`: five RMSE(off) curves
+against log attempts, with the 100-point one-rank line marked and a shaded 95% band per curve.
+Colour is the data (ungated, gated, gated with 10% ungated traffic) and line style the estimator,
+solid for online Glicko-2 and dashed for the joint refit of the identical log, so the figure holds
+both the section-3 and the section-4 contrasts at once. `--no-joint` drops the dashed pair and the
+~30 seconds they cost. It
 is the fastest way to see that the gated curve declines rather than flattening, which is the claim
 an earlier draft got wrong. The bands are the *per-regime* intervals — the conservative pair — so
 the gaps between curves are wider than they look; the paired contrasts that the conclusions rest on

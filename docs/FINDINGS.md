@@ -204,6 +204,9 @@ directly comparable. 300 puzzles, 3,000 players, 10 reps:
 | 160      | gated  | online    | 287.1 ± 7.4 | 147       | 2.36  | 0.94 |                       |
 | 160      | gated  | batch     | **111.5 ± 4.0** | 40  | 1.30  | 1.00 | −175.6 ± 6.3 |
 
+The dashed curves in `out/recovery.png` are this table's `batch` rows across the whole sweep:
+`recovery.py` calls the same `fit` on the same log, so the figure and this table cannot drift.
+
 The last column is the tightest interval in the repo, and here the pairing genuinely earns it: the
 two estimators run on *one shared log per rep*, so the contrast is paired twice over — same world,
 same log — and only the estimator differs. That buys 1.3–4.4× over an independent-samples
