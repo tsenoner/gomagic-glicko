@@ -79,8 +79,8 @@ difficulties and skills. Simulate the first-attempt log that skill-tree gating p
 each player meets only puzzles near their own level, the exposure pattern implied by the tree
 on Go Magic's public page. Fit Glicko-2 on that log with the truth hidden, and score how far
 the fitted difficulties land from the planted ones. The scale:
-<strong>&plusmn;100 rating points &asymp; one Go rank</strong>; an error of 467 &mdash; the
-planted spread &mdash; would mean nothing was learned.</p>
+<strong>&plusmn;100 rating points &asymp; one Go rank</strong> (EGF's convention, measured:
+accurate at 1d, generous below); 467, the planted spread, would mean nothing was learned.</p>
 
 <div class="finding">
   <p class="lead">A puzzle's difficulty can be measured to about one rank from ~160 first
