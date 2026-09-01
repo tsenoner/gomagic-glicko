@@ -8,9 +8,9 @@
 **How much data does it take to measure a Go puzzle's difficulty, instead of guessing it?**
 
 Go Magic assigns difficulty by hand — a static 11-level table, one judgement per puzzle, across
-**10,160 puzzles**, never revised by the millions of attempts already in their database. This repo
-simulates the replacement: a solve treated as a Glicko-2 game between player and puzzle, scored
-against a planted ground truth. Recovery error in rating points, where **100 ≈ one rank** and
+**10,160 puzzles** (their own counter, August 2026), never revised by the millions of attempts
+already in their database. This repo simulates the replacement: a solve treated as a Glicko-2 game
+between player and puzzle, scored against a planted ground truth. Recovery error in rating points, where **100 ≈ one rank** and
 **467 = nothing learned**; 300 puzzles, 3,000 players, 10 planted worlds, 95% CIs.
 
 | attempts/puzzle | random pairing | gated (skill tree) | gated, refit jointly |
