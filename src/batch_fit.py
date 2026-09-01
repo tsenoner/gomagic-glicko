@@ -178,7 +178,7 @@ def main() -> None:
                 cell = f"{m:>9.1f} ± {h:>5.1f}" if h == h else f"{m:.1f}"
                 print(f"  {n:>8}  {'banded' if banded else 'random':<7}  {est:<9}  "
                       f"{cell:>17}  {mean_of(s, 'rmse_affine'):>9.1f}  "
-                      f"{mean_of(s, 'slope'):>5.2f}  {mean_of(s, 'rho'):>5.2f}")
+                      f"{mean_of(s, 'slope'):>5.2f}  {mean_of(s, 'rho'):>5.3f}")
             # The estimators are run on one shared log per rep, so this contrast is paired twice
             # over — same world, same log — and is the tightest interval in the repo.
             if reps >= 2:

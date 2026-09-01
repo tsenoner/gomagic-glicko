@@ -17,7 +17,7 @@ the player "wins"; fail and the puzzle "wins". Run that over an attempt log and 
 for every player and every puzzle on one scale, from data you already have.
 
 Go Magic assigns puzzle difficulty by hand — one person's judgement per puzzle, across 10,160 of
-them, never revised by the millions of attempts in the database. This is the machinery that would
+them, never revised by the attempts already in the database. This is the machinery that would
 turn those judgements into measurements.
 """
 

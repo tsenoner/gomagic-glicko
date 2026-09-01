@@ -8,10 +8,10 @@
 **How much data does it take to measure a Go puzzle's difficulty, instead of guessing it?**
 
 Go Magic assigns difficulty by hand — a static 11-level table, one judgement per puzzle, across
-**10,160 puzzles** (their own counter, August 2026), never revised by the millions of attempts
-already in their database. This repo simulates the replacement: a solve treated as a Glicko-2 game
+**10,160 puzzles** (their own counter, August 2026), never revised by the attempts already
+in their database. This repo simulates the replacement: a solve treated as a Glicko-2 game
 between player and puzzle, scored against a planted ground truth. Recovery error is in rating
-points, where **100 ≈ one rank** (measured: exact at 1d, generous below) and
+points, where **100 ≈ one rank** (measured: 96 points per rank at 1d, 44 at 10k) and
 **467 = nothing learned**; 300 puzzles, 3,000 players,
 10 planted worlds, 95% CIs.
 
@@ -21,10 +21,10 @@ points, where **100 ≈ one rank** (measured: exact at 1d, generous below) and
 | 40              | 166.8 ± 4.1    | 355.2 ± 6.1        | 251.5 ± 7.8          |
 | 160             | 106.5 ± 3.4    | 287.1 ± 7.4        | **111.5 ± 4.0**      |
 
-**Gating costs ~2.8×, but most of that is the online estimator rather than the data** — a joint
-refit of the identical log recovers it. So for a one-off backfill over an existing log, fit jointly;
-keep online Glicko for the live path. Uneven traffic costs as much again and, unlike gating, wrecks
-the ordering as well as the scale.
+**Gating costs 2.7× at 160 attempts, but most of that is the online estimator rather than the
+data** — a joint refit of the identical log recovers it. So for a one-off backfill over an existing
+log, fit jointly; keep online Glicko for the live path. Uneven traffic costs as much again and,
+unlike gating, wrecks the ordering as well as the scale.
 
 This does not claim their labels are wrong — that needs their attempt log. It answers the question
 that comes *before* that one. Nothing here uses private data; only the skill tree is real.

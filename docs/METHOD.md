@@ -121,7 +121,7 @@ The arithmetic that motivates all of this:
   average across the catalogue. Traffic through a prerequisite tree is wildly uneven, so coverage
   will be uneven by construction — which is an argument for a per-puzzle readiness gate rather
   than a global cutover. Section 7 now measures that rather than asserting it: at *matched* total
-  volume, funnelled traffic costs 40–50 RMSE points and drops the gated rank correlation from 0.94
+  volume, funnelled traffic costs 30–50 RMSE points and drops the gated rank correlation from 0.94
   to 0.78.
 
 That is why the question is "how much data, and shaped how", rather than "which algorithm".
@@ -138,9 +138,11 @@ repeatedly:
 | that snapshot's fidelity | **reduced, not edited.** Scripts, styles, SVG, images and comments were stripped and the per-node `data-nonce` values redacted before publication; page structure, every `data-*` the parser reads, and all page text are verbatim, and the parse output is byte-identical to the unreduced capture |
 | "10,160 puzzles" | **backed** — the phrase appears in the snapshot |
 | "5 puzzles per quiz" | **backed** — *"a quiz — a short series of 5 puzzles"* |
-| the static 11-level difficulty table | **not backed.** The snapshot contains the word "difficulty" zero times |
-| the lives mechanic (section 4) | **not backed** — from other, un-snapshotted pages |
-| the Go Diagnostics "confidence range" quote (section 7) | **not backed** — same |
+| the row-by-row unlock rule, and that Gold and Magic members can switch it off | **backed** — *"bring every skill in the previous row to at least level 1"*; *"Gold and Magic members can switch off the row-by-row progression and practice any skill … in any order"* |
+| "first try earns coins" (section 4's first-attempt rule) | **backed** — *"Solving a problem on the first try earns coins"* |
+| the static 11-level difficulty table | **not in the snapshot** (it contains the word "difficulty" zero times); public at `gomagic.org/ranking-system/`, checked live 2026-09-01, not snapshotted |
+| the lives mechanic (section 4) | **not backed** — on no public page found as of 2026-09-01; treat as unverified |
+| the Go Diagnostics "confidence range" quote (section 7) | **not in the snapshot**; verbatim at `gomagic.org/go-tests/`, checked live 2026-09-01, not snapshotted. That page also offers a chosen target level, so "ungated" means its *All Levels* option |
 | the Lichess constants in `glicko2.py`[^lila-glicko][^scalachess-tau] | **verified against source**, with the citations and three corrections in section 4 |
 
 ### Map
@@ -842,15 +844,16 @@ than a simple bias:
 
 ### The lives mechanic, and the outcome definition it forces
 
-Go Magic gives one or two lives per puzzle. This is deliberate design, not leniency: the point is
-to make you read the position out before touching the board. You may retry after failing, but a
-retried solve earns no coins and no XP.
+Go Magic gives one or two lives per puzzle (a mechanic on no public page found; see the sourcing
+table in section 1). This is deliberate design, not leniency: the point is to make you read the
+position out before touching the board. You may retry after failing, but a retried solve earns no
+coins (the snapshot: *"Solving a problem on the first try earns coins"*).
 
 **The blocking data dependency is much smaller than it looks.** A first-attempt-only rule needs to
 know, for every (user, puzzle) pair, whether this is the first try — which sounds like a schema
-change and a backfill. But a lives counter cannot work without exactly that field: to show a player
-their second life, the system must already know they used the first. Whatever table drives the
-lives UI is the table a first-attempt-only extraction reads.
+change and a backfill. But the coin rule cannot work without exactly that field — to pay a first-try solve, the system
+must already know it was the first try — and a lives counter, if there is one, needs it too.
+Whatever table drives the coins is the table a first-attempt-only extraction reads.
 
 **And the justification becomes principled rather than borrowed.** "First attempts only" could be
 dismissed as a Lichess convention adopted because Lichess adopted it. Here it falls out of Go
@@ -1602,18 +1605,18 @@ same subset:
 
 | attempts | regime | estimator | RMSE(off) | RMSE(aff) | slope | rho |
 |---|---|---|---|---|---|---|
-| 10 | ungated | online | 249.5 ± 4.8 | 215.2 | 1.46 | 0.89 |
-| 10 | ungated | batch | 237.8 ± 5.1 | 211 | 1.37 | 0.89 |
-| 10 | gated | online | 408.2 ± 5.1 | 405.8 | 1.26 | 0.44 |
-| 10 | gated | batch | **388.1 ± 5.3** | 383 | 1.34 | 0.53 |
-| 40 | ungated | online | 166.8 ± 4.1 | 117.7 | 1.37 | 0.97 |
-| 40 | ungated | batch | 133.9 ± 4.4 | 108 | 1.22 | 0.98 |
-| 40 | gated | online | 355.2 ± 6.1 | 276.5 | 2.64 | 0.78 |
-| 40 | gated | batch | **251.5 ± 7.8** | 145 | 1.92 | 0.95 |
-| 160 | ungated | online | 106.5 ± 3.4 | 76.6 | 1.20 | 0.99 |
-| 160 | ungated | batch | 63.7 ± 3.1 | 52 | 1.09 | 0.99 |
-| 160 | gated | online | 287.1 ± 7.4 | 146.8 | 2.36 | 0.94 |
-| 160 | gated | batch | **111.5 ± 4.0** | 40 | 1.30 | 1.00 |
+| 10 | ungated | online | 249.5 ± 4.8 | 215.2 | 1.46 | 0.886 |
+| 10 | ungated | batch | 237.8 ± 5.1 | 211 | 1.37 | 0.891 |
+| 10 | gated | online | 408.2 ± 5.1 | 405.8 | 1.26 | 0.437 |
+| 10 | gated | batch | **388.1 ± 5.3** | 383 | 1.34 | 0.531 |
+| 40 | ungated | online | 166.8 ± 4.1 | 117.7 | 1.37 | 0.971 |
+| 40 | ungated | batch | 133.9 ± 4.4 | 108 | 1.22 | 0.976 |
+| 40 | gated | online | 355.2 ± 6.1 | 276.5 | 2.64 | 0.781 |
+| 40 | gated | batch | **251.5 ± 7.8** | 145 | 1.92 | 0.948 |
+| 160 | ungated | online | 106.5 ± 3.4 | 76.6 | 1.20 | 0.986 |
+| 160 | ungated | batch | 63.7 ± 3.1 | 52 | 1.09 | 0.994 |
+| 160 | gated | online | 287.1 ± 7.4 | 146.8 | 2.36 | 0.945 |
+| 160 | gated | batch | **111.5 ± 4.0** | 40 | 1.30 | 0.996 |
 
 The estimator contrast is paired *twice* over — same planted world, and then the same single log
 handed to both arms — so these are the tightest intervals in the repo, 1.3–4.4× tighter than an
@@ -1785,7 +1788,8 @@ comes from the live path, and the live path is online by necessity. Linking is t
 improves the number the live estimator produces.
 
 Go Magic appears to already own the ungated instrument. **Go Diagnostics** (`/go-tests/`, in beta)
-is not gated by the tree, which makes it structurally a linking instrument, and it is described as
+sits outside the tree — ungated in its *All Levels* setting, though its default is a chosen target
+level — which makes it structurally a linking instrument, and it is described as
 returning *"an estimated puzzle rank with a confidence range"* — a confidence range around a rating
 estimate being Glicko's RD under another name. (That quote is not backed by the committed snapshot;
 see section 1.)
@@ -1825,7 +1829,7 @@ bias pointing away from them.
 
 Three things follow, and the third is the one that changes a recommendation.
 
-**Uneven traffic is a first-class cost, not a footnote.** It is worth 40–50 RMSE points at matched
+**Uneven traffic is a first-class cost, not a footnote.** It is worth 30–50 RMSE points at matched
 volume. That is smaller than gating's own 180-point penalty, but it is the same size as the
 remedies on offer against gating — a 25% linking budget *buys back* 57 points at 40 attempts — so
 it belongs in the same budget conversation rather than in a caveat list. Every table above this one
@@ -1891,15 +1895,22 @@ with it or the regime stops being gated.
 ### The figure
 
 `./src/recovery.py --puzzles 300 --reps 10` writes `out/recovery.png`: five RMSE(off) curves
-against log attempts, with the 100-point one-rank line marked and a shaded 95% band per curve.
-Colour is the data (ungated, gated, gated with 25% ungated traffic) and line style the estimator,
-solid for online Glicko-2 and dashed for the joint refit of the identical log, so the figure holds
-both the section-3 and the section-4 contrasts at once. `--no-joint` drops the dashed pair and the
-~30 seconds they cost. It
-is the fastest way to see that the gated curve declines rather than flattening, which is the claim
-an earlier draft got wrong. The bands are the *per-regime* intervals — the conservative pair — so
-the gaps between curves are wider than they look; the paired contrasts that the conclusions rest on
-are printed to the terminal instead.
+against log attempts on a zero-based axis with a gridline per hundred points, so every gridline is
+one nominal rank, with a shaded 95% band per curve. Two dotted reference lines bracket the curves:
+the 100-point one-rank line, labelled *at 1d* because that is where the convention is exact, and
+the 467-point no-information ceiling, so the 3-attempt points read as what they are — almost
+nothing learned. Colour is the data (ungated, gated, gated with 25% ungated traffic; the green is
+Okabe–Ito's bluish green, which stays apart from the red under red–green colour blindness) and line
+style the estimator, solid for online Glicko-2 and dashed for the joint refit of the identical log,
+so the figure holds both the section-3 and the section-4 contrasts at once; the legend below the
+axes is laid out as that grid, a column per data regime and a row per estimator. A red bracket at
+the last sweep point labels the headline contrast — the gated log fitted online against the same
+log refit jointly, with the percentage cut — read from the results rather than typed in, so a
+`--quick` or `--sweep` run labels its own last point. `--no-joint` drops the dashed pair, the
+bracket, and the ~30 seconds they cost. The figure is the fastest way to see that the gated curve
+declines rather than flattening, which is the claim an earlier draft got wrong. The bands are the
+*per-regime* intervals — the conservative pair — so the gaps between curves are wider than they
+look; the paired contrasts that the conclusions rest on are printed to the terminal instead.
 
 ### What to actually do
 
@@ -1971,7 +1982,8 @@ are printed to the terminal instead.
 - **skill tree / node / level / quiz** — Go Magic's progression structure: 74 nodes, 1–5 levels
   each, 2–6 quizzes per level, 5 puzzles per quiz.
 - **attempt slot** — one (puzzle, position-in-tree) opportunity; 4,790 to complete the tree.
-- **lives** — the one or two tries granted per puzzle; a retried solve earns no coins or XP.
+- **lives** — the one or two tries granted per puzzle, on no public page found; a retried solve
+  earns no coins under the first-try coin rule.
 - **Go Diagnostics** — Go Magic's ungated blind test at `/go-tests/`, in beta.
 - **OGS** — online-go.com, the largest Go server; has rated players with Glicko-2 since 2017.
 - **lila** — the Lichess server codebase (Scala 3), source of the production *constants* used here.

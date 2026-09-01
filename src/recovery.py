@@ -204,8 +204,8 @@ def make_log(sim: Sim, attempts_per_puzzle: int, banded: bool, rng: random.Rando
     `linking` is the fraction of *puzzles* served ungated even in the banded regime — common items
     spanning the whole range, seen by everyone. That is the psychometric remedy for a poorly
     connected design: they pin the scale together. Because every puzzle gets the same number of
-    attempts, this is also the fraction of ungated traffic. Go Magic already owns the instrument
-    for this — the Go Diagnostics test is not gated by the tree.
+    attempts, this is also the fraction of ungated traffic. Go Magic may already own the instrument
+    for this — the Go Diagnostics test sits outside the tree and offers an All Levels option.
 
     `funnel` makes the per-puzzle attempt count decay with difficulty instead of being flat; see
     `funnel_counts`. Left at 1.0 the generator is exactly as it was.
@@ -490,7 +490,7 @@ def main() -> None:
                   f"{mean([s.rmse_affine for s in scores]):>9.1f}  "
                   f"{mean([s.slope for s in scores]):>5.2f}  "
                   f"{mean([s.within_100 for s in scores]):>4.0%}  "
-                  f"{mean([s.rho for s in scores]):>5.2f}")
+                  f"{mean([s.rho for s in scores]):>5.3f}")
             results[regime].append((n, off, half))
 
             if joint_scores:
@@ -503,7 +503,7 @@ def main() -> None:
                       f"{mean([x.rmse_affine for x in joint_scores]):>9.1f}  "
                       f"{mean([x.slope for x in joint_scores]):>5.2f}  "
                       f"{mean([x.within_100 for x in joint_scores]):>4.0%}  "
-                      f"{mean([x.rho for x in joint_scores]):>5.2f}")
+                      f"{mean([x.rho for x in joint_scores]):>5.3f}")
                 results[joint_nm].append((n, j_off, j_half))
 
         # Paired contrasts. These, not the per-regime intervals above, are what the claims rest on:
@@ -530,8 +530,9 @@ def main() -> None:
 
 def _legend(regime: str) -> str:
     """Curves carry the ungated/gated vocabulary the write-ups use; the printed tables keep the
-    internal regime names, so `banded+25% link` reads as `gated + 25% ungated` on the figure."""
-    return regime.replace("banded+", "gated + ").replace(" link", " ungated")
+    internal regime names, so `banded+25% link` reads as `gated + 25% ungated, online` on the
+    figure. The linked regimes are fitted online only, and the legend says so."""
+    return regime.replace("banded+", "gated + ").replace(" link", " ungated") + ", online"
 
 
 def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
@@ -541,13 +542,27 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     import matplotlib.pyplot as plt
     from matplotlib.ticker import NullLocator
 
-    fig, ax = plt.subplots(figsize=(7.5, 5.6), dpi=160)
-    fixed = {"random": ("#2563eb", "o", "-", "ungated (random pairing)"),
-             "banded": ("#dc2626", "s", "-", "gated (skill tree)"),
-             "banded joint": ("#dc2626", "D", "--", "gated, refit jointly"),
-             "random joint": ("#2563eb", "D", "--", "ungated, refit jointly")}
-    greens = ["#16a34a", "#0d9488", "#4d7c0f", "#065f46"]
+    # Sized for the one-pager, which reproduces the figure at about 95 mm wide: at 5.6 in nominal
+    # width the 10-11 pt labels print at roughly 7 pt, the page's own footnote size. The earlier
+    # 7.5 in figure put them at 5 pt.
+    plt.rcParams["font.family"] = ["Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"]
+    # Laid out by hand rather than by tight/constrained layout: the legend and the provenance
+    # line sit below the axes, and the automatic engines either clip the title or run the two
+    # into each other. Fractions of the figure: title above 0.935, legend 0.03-0.12, footer
+    # under 0.03.
+    fig = plt.figure(figsize=(5.6, 4.3), dpi=220)
+    ax = fig.add_axes((0.115, 0.28, 0.865, 0.655))
+    red, blue, grey = "#b8321e", "#2563eb", "#64748b"   # the page's own red
+    fixed = {"random": (blue, "o", "-", "ungated, online"),
+             "random joint": (blue, "D", "--", "ungated, refit jointly"),
+             "banded": (red, "s", "-", "gated, online"),
+             "banded joint": (red, "D", "--", "gated, refit jointly")}
+    # Teal rather than the previous #16a34a green, which collapsed into the red under both
+    # deuteranopia and protanopia; teal keeps a lightness gap under both, and the triangle
+    # markers are the remaining redundancy.
+    greens = ["#0d9488", "#009E73", "#4d7c0f", "#065f46"]
 
+    handles: dict[str, object] = {}
     linked = 0
     for regime, pts in results.items():
         if regime in fixed:
@@ -556,7 +571,8 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
             colour, marker, style, label = greens[linked % len(greens)], "^", "-", _legend(regime)
             linked += 1
         xs, ys, halves = [p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts]
-        ax.plot(xs, ys, marker=marker, ls=style, color=colour, lw=2, ms=5, label=label)
+        (handles[regime],) = ax.plot(xs, ys, marker=marker, ls=style, color=colour, lw=2, ms=5,
+                                     label=label)
         # The band is the 95% interval on each regime's own mean. It is not the interval for the
         # gap between two regimes — that one is paired, printed rather than drawn, and not
         # reliably narrower than these bands suggest (see `paired_ci95`). Overlapping bands here
@@ -573,32 +589,62 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     ax.set_xticks(ticks)
     ax.set_xticklabels([f"{t:g}" for t in ticks])
     ax.xaxis.set_minor_locator(NullLocator())
-    # Type sizes are set for the one-pager, where the figure is reproduced at about half its
-    # nominal width: matplotlib's 10pt defaults land near 5pt on the printed page.
+    ax.set_xlim(ticks[0] / 1.2, ticks[-1] * 2.2)   # room on the right for the end labels
+    # Zero-based, one gridline per hundred points: every line is one nominal rank, and the
+    # no-information ceiling sits inside the frame instead of above it, so the 3-attempt points
+    # read as what they are — almost nothing learned.
+    ax.set_ylim(0, 500)
+    ax.set_yticks(range(0, 501, 100))
     ax.set_xlabel("first attempts per puzzle", fontsize=11)
-    ax.set_ylabel("difficulty recovery error (RMSE, rating points)", fontsize=11)
+    ax.set_ylabel("recovery error (RMSE, rating points)", fontsize=11)
     ax.tick_params(labelsize=10)
     ax.set_title("How much data before a puzzle's difficulty is measured?", loc="left", fontsize=12)
-    ax.axhline(100, color="#64748b", ls=":", lw=1)
-    ax.text(ax.get_xlim()[0] * 1.05, 104, "±100 points ≈ one Go rank", fontsize=9, color="#64748b")
-    ax.grid(alpha=0.25, which="both")
-    # Pinned, not "best": with five curves matplotlib parks it over the one-rank annotation.
-    ax.legend(frameon=False, fontsize=10, loc="upper right")
+    for level, text in ((100, "±100 points ≈ one Go rank (at 1d)"),
+                        (TRUE_SD, f"{TRUE_SD:.0f}: every puzzle given the same difficulty, "
+                                  "nothing learned")):
+        ax.axhline(level, color=grey, ls=":", lw=1)
+        ax.text(ticks[0] / 1.15, level + 8, text, fontsize=10, color=grey)
+    ax.grid(alpha=0.25)
     ax.spines[["top", "right"]].set_visible(False)
-    fig.text(0.01, 0.01,
-             f"simulation: {n_puzzles} puzzles, {n_players} players, {reps} reps"
+
+    # The headline contrast, read off the results rather than typed in, so a --quick or --sweep
+    # run labels its own last point: the same gated log, fitted online and refit jointly.
+    if {"banded", "banded joint"} <= results.keys():
+        x_hi, hi = results["banded"][-1][:2]
+        x_lo, lo = results["banded joint"][-1][:2]
+        if x_hi == x_lo and hi > lo:
+            bx = x_hi * 1.12
+            ax.plot([bx, bx], [lo, hi], color=red, lw=1)
+            ax.plot([x_hi * 1.09, bx], [hi, hi], color=red, lw=1)
+            ax.plot([x_hi * 1.09, bx], [lo, lo], color=red, lw=1)
+            ax.text(x_hi * 1.17, hi, f"{hi:.0f}", color=red, fontsize=10, fontweight="bold",
+                    va="center")
+            ax.text(x_hi * 1.17, lo, f"{lo:.0f}", color=red, fontsize=10, fontweight="bold",
+                    va="center")
+            ax.text(x_hi * 1.17, (hi + lo) / 2, f"−{100 * (hi - lo) / hi:.0f}%\nsame log,\n"
+                    "refit jointly", color=red, fontsize=9, va="center", linespacing=1.15)
+
+    # Below the axes as a 2x2-plus-one grid: each column one data regime, each row one
+    # estimator, which is the decoding rule the page's caption states. matplotlib fills legend
+    # columns top to bottom, so the handle order is what makes the grid.
+    order = [r for r in ("random", "random joint", "banded", "banded joint") if r in handles]
+    order += [r for r in handles if r not in fixed]
+    fig.legend([handles[r] for r in order], [handles[r].get_label() for r in order],
+               loc="lower center", bbox_to_anchor=(0.5, 0.03), frameon=False, fontsize=8.5,
+               ncol=3, columnspacing=1.0, handlelength=2.2)
+    # One line of provenance under the legend, for the PNG on its own; the page's caption
+    # carries the legible version.
+    fig.text(0.01, 0.006,
+             f"{n_puzzles} puzzles, {n_players:,} players, "
+             f"{reps} planted world{'s' if reps != 1 else ''}"
              + (f", funnel {funnel:g}" if funnel < 1.0 else "")
              + f"; planted truth ~ N({DEFAULT_RATING:.0f}, {TRUE_SD:.0f}) "
              f"≈ {as_rank(DEFAULT_RATING - 3 * TRUE_SD)}–{as_rank(DEFAULT_RATING + 3 * TRUE_SD)} "
-             f"at ±3 sd.\nOnline Glicko-2 with Lichess clamps. Error is RMSE after removing a "
-             f"mean offset, so compression counts; bands are 95% t intervals."
-             f"\nShows what measuring difficulty would take, not that any label is wrong.",
-             fontsize=7, color="#64748b")
-    fig.tight_layout(rect=(0, 0.055, 1, 1))
+             f"at ±3 sd.",
+             fontsize=8, color=grey, va="bottom")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out)
     print(f"  wrote {out}\n")
-
 
 if __name__ == "__main__":
     main()

@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -63,7 +64,7 @@ def data_uri(png: Path) -> str:
     return "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
 
 
-def build_html(chart: str, css: str) -> str:
+def build_html(chart: str, css: str, built: str) -> str:
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>Measuring Go puzzle difficulty</title>
@@ -76,76 +77,79 @@ instead of assigning it by hand?</p>
 
 <p class="setup"><strong>What I did.</strong> Plant 300 puzzles and 3,000 players with known
 difficulties and skills. Simulate their first-attempt logs under three exposure patterns; the one
-modelling Go Magic is skill-tree gating, where a player meets only puzzles near their own level.
-Fit each log twice with the truth hidden: online, one attempt at a time as a live system runs
-Glicko-2, and jointly, one fit over the whole log. Score both against the planted difficulties.
-Scale:
-<strong>&plusmn;100 points &asymp; one Go rank</strong> (EGF convention, accurate at 1d and
-generous below); assigning every puzzle the same difficulty scores 467.</p>
+modelling Go Magic is skill-tree gating, where a player meets only puzzles within 300 points of
+their own level. Fit the ungated and gated logs twice with the truth hidden: online, one attempt
+at a time as a live system runs Glicko-2, and jointly, one Rasch fit of every rating at once.
+Score both against the planted difficulties. Scale: <strong>&plusmn;100 points &asymp; one Go
+rank</strong> (EGF convention; measured, a rank is 96 points at 1d and 44 at 10k); assigning
+every puzzle the same difficulty scores 467 points of error.</p>
 
 <div class="finding">
   <p class="lead">About 160 first attempts measure a puzzle's difficulty to roughly one rank,
   but on skill-tree data only if the log is fitted <em>jointly</em>. Replaying the same log
   one attempt at a time, the standard online way, leaves almost three ranks of error:
   <span class="num">287</span> points against <span class="num">112</span>, a
-  <span class="num">61%</span> cut from how the fit is run alone.</p>
-  <p class="note">The failure mode it avoids: reading 290 points of error off an online refit and
-  concluding the data is inadequate.</p>
+  <span class="num">61%</span> cut for nothing but compute.</p>
+  <p class="note">So backfill the existing log jointly. The trap is replaying it online, reading
+  287 points of error and calling the data inadequate.</p>
 </div>
 
 <div class="split">
   <figure>
-    <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle">
-    <figcaption><strong>Two exposure patterns, two estimators.</strong> Colour is the data:
-    ungated random pairing against skill-tree gating as implied by Go Magic's public tree, green
-    adding 25% ungated traffic. Line style is the estimator: solid online, dashed the same log
-    refit jointly. Dotted line is one-rank accuracy; bands are 95% intervals over ten
-    worlds.</figcaption>
+    <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle, for
+    ungated and gated logs fitted online and jointly">
+    <figcaption><strong>Three exposure patterns, two estimators.</strong> Colour is the data:
+    ungated random pairing against skill-tree gating, a &plusmn;300-point band standing in for
+    Go Magic's row-by-row tree (which Gold and Magic members can switch off, so part of the real
+    log is ungated); green, fitted online only, adds 25% ungated traffic. Line style is the
+    estimator: solid online, dashed the same log refit jointly. Dotted lines: one-rank accuracy
+    and the 467 ceiling. Bands: 95% intervals over ten simulated worlds.</figcaption>
     <p class="repro"><strong>Reproduce.</strong>
-    <code>./src/recovery.py --puzzles 300 --reps 10</code> draws every curve here. Other numbers are
-    one command each in <code>docs/RUNNING.md</code>; the estimator is checked against Glickman's
-    worked example.</p>
+    <code>./src/recovery.py --puzzles 300 --reps 10</code> draws every curve here; the other
+    numbers trace to <code>docs/RUNNING.md</code> and <code>METHOD.md</code> sections 1 and 7; the
+    estimator is checked against Glickman's worked example. Go Magic facts are from the committed
+    snapshot of its public skill-tree page (16 Aug 2026); nothing private.</p>
   </figure>
   <div>
     <h2>Three results</h2>
     <div class="stack">
       <div>
         <h3>Gating itself costs accuracy</h3>
-        <p>Under gating no attempt directly compares an easy puzzle with a hard one:
-        <span class="num">1.6&times;</span> the error at 10 first attempts per puzzle,
-        <span class="num">2.7&times;</span> at 160, and a smaller check holds ~2.8&times; out to
-        1,280. Neither more traffic nor a better estimator closes it: refit jointly, a residual
-        <span class="num">1.75&times;</span> remains.</p>
+        <p>Under gating no player's attempts span an easy puzzle and a hard one: against ungated
+        pairing, <span class="num">1.6&times;</span> the error at 10 first attempts per puzzle,
+        <span class="num">2.7&times;</span> at 160, and a coarser check holds about 2.8&times;
+        out to 1,280. Neither more traffic nor a better estimator closes the gap to ungated data:
+        refit jointly, <span class="num">1.75&times;</span> remains.</p>
       </div>
       <div>
         <h3>The damage is to the spacing, not the ordering</h3>
-        <p>At 160 attempts the gated fit ranks puzzles well but compresses the scale to under
-        half its width: it knows <em>which</em> puzzle is harder, not <em>by how much</em>.
-        Compression is repairable.</p>
+        <p>At 160 attempts the gated online fit ranks puzzles well but compresses the scale to
+        under half its width: it knows <em>which</em> puzzle is harder, not <em>by how much</em>.
+        The joint fit repairs most of it.</p>
       </div>
       <div>
         <h3>Uneven traffic is a second, separate cost</h3>
-        <p>Everybody attempts the first node; few reach the last. At matched volume that funnel
-        costs <span class="num">30&ndash;50</span> points and drops the ordering from 0.94 to
-        <span class="num">0.78</span>, the one thing gating had left intact.</p>
+        <p>Everybody attempts the first row; few reach the last. At equal volume an assumed 50:1
+        funnel costs <span class="num">30&ndash;50</span> points and drops the ordering, the one
+        thing gating had left intact, from 0.94 to <span class="num">0.78</span>.</p>
       </div>
     </div>
     <table class="mini">
       <thead><tr>
         <th>at 160 first<br>attempts</th><th>RMSE</th>
-        <th>fitted<br>scale</th><th>&rho;</th>
+        <th>compression</th><th>ordering &rho;</th>
       </tr></thead>
       <tbody>
-        <tr><td>ungated, online</td><td>107</td><td>1.20</td><td>0.99</td></tr>
-        <tr><td>ungated, joint</td><td>64</td><td>1.09</td><td>0.99</td></tr>
-        <tr><td>gated, online</td><td>287</td><td>2.36</td><td>0.94</td></tr>
-        <tr><td>gated, joint</td><td class="win">112</td><td class="win">1.30</td><td>1.00</td></tr>
+        <tr><td>ungated, online</td><td>107</td><td>1.20</td><td>0.986</td></tr>
+        <tr><td>ungated, joint</td><td>64</td><td>1.09</td><td>0.994</td></tr>
+        <tr><td>gated, online</td><td>287</td><td>2.36</td><td>0.945</td></tr>
+        <tr><td>gated, joint</td><td class="win">112</td><td>1.30</td><td>0.996</td></tr>
       </tbody>
     </table>
-    <p class="tnote">RMSE in rating points, mean offset removed (&plusmn;100 &asymp; one rank).
-    Fitted scale is the slope onto the planted truth: 1.0 is right, 2.36 means the spread is
-    2.36&times; too narrow. &rho; is rank correlation, over ten worlds; within a regime both rows
-    fit the identical log.</p>
+    <p class="tnote">RMSE in rating points, mean offset removed. Compression: the slope of
+    planted on fitted difficulty; 1.0 is right, 2.36 means the fitted spread is 2.36&times; too
+    narrow. &rho;: rank correlation. Ten-world means; each pair of rows fits the identical
+    log.</p>
   </div>
 </div>
 
@@ -153,42 +157,46 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
 <div class="cols">
   <div>
     <h3>Backfill jointly, serve online</h3>
-    <p>Fit the history once, jointly, for the labels; keep online Glicko-2 for the live path, where
-    one-at-a-time updating is right.</p>
+    <p>Fit the history jointly for the labels, with one skill per player per time window: the
+    joint fit otherwise holds a learner's skill fixed. Keep online Glicko-2 for the live path,
+    where <span style="white-space:nowrap">one-at-a-time</span> updating is right.</p>
   </div>
   <div>
     <h3>Ship labels per puzzle, not per catalogue</h3>
-    <p>Coverage will never be uniform: publish a measured label only where the attempts exist.
-    But not on Glicko's own RD, which under gating claims <span class="num">3.7&times;</span> more
-    precision than it delivers.</p>
+    <p>Publish a measured label where enough attempts exist and keep the hand label until then,
+    decided by count, not by Glicko's own error bar (RD), which under gating understates its error
+    <span class="num">3.7&times;</span>.</p>
   </div>
   <div>
     <h3>Anchor the scale with an ungated test</h3>
-    <p>An ungated diagnostic spanning the rank range is the standard repair for a compressed scale:
-    25% of traffic through one buys back <span class="num">57</span> points and much of the
-    compression.</p>
+    <p>An ungated test across the ranks is the standard repair for compression: 25% of traffic
+    through one buys the online fit back <span class="num">57</span> points at 40 attempts and
+    half the compression. Go Tests may already be one.</p>
   </div>
 </div>
 
 <div class="caveat">
-  <strong>What this does not claim.</strong> Not that any hand-assigned label is wrong; testing
-  that needs the private attempt log. It answers the prior question: if difficulty were
-  measured from attempts, how much data would the answer need to mean anything? That depends only
-  on the estimator and the <em>shape</em> of the data, so simulation settles it. No private data
-  is used.
-  <br><br>
-  <strong>The next step is small:</strong> run the joint fit over one month of the real log, first
-  attempts only, and check the recovery curve against it.
+  <strong>What this does not claim.</strong> Not that any hand label is wrong; that needs the
+  private attempt log, and none is used here. It answers the question before that one: measured
+  from attempts, how much data would a difficulty need to mean anything? Simulation can settle
+  that for the estimator and the data's shape; real attempts fit its one-trait logistic model
+  less well, so read the counts here as a floor.
 </div>
+<p class="next"><strong>The next step is small:</strong> fit one month of the real log both ways,
+first attempts only (the try the coin rule singles out). If the table holds, the online labels come
+out about half as wide as the joint ones, and attempts per puzzle place every label on the red curves
+above.</p>
 
 <footer>
-  <span>Tobias Senoner &middot; github.com/tsenoner/gomagic-glicko</span>
-  <span>Method, derivations and sourcing: <code>docs/METHOD.md</code></span>
+  <span>Tobias Senoner &middot;
+    <a href="https://github.com/tsenoner/gomagic-glicko">github.com/tsenoner/gomagic-glicko</a>
+    &middot; {built}</span>
+  <span>Method, derivations and sourcing:
+    <a href="https://github.com/tsenoner/gomagic-glicko/blob/main/docs/METHOD.md"><code>docs/METHOD.md</code></a></span>
 </footer>
 
 </body></html>
 """
-
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -196,6 +204,8 @@ def main() -> None:
     ap.add_argument("--chart", type=Path, default=ROOT / "out" / "recovery.png")
     ap.add_argument("--out", type=Path, default=ROOT / "out" / "onepager.pdf")
     ap.add_argument("--html-only", action="store_true")
+    ap.add_argument("--built", default=date.today().strftime("%-d %b %Y"),
+                    help="the date printed in the footer (default: today)")
     args = ap.parse_args()
 
     if not args.chart.exists():
@@ -203,7 +213,7 @@ def main() -> None:
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     html_path = args.out.with_suffix(".html")
-    html_path.write_text(build_html(data_uri(args.chart), read_css()))
+    html_path.write_text(build_html(data_uri(args.chart), read_css(), args.built))
     print(f"  wrote {html_path}")
     if args.html_only:
         return

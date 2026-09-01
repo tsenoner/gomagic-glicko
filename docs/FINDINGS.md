@@ -36,7 +36,8 @@ fitted scale is already right, 2.6 means the fitted spread is 2.6× too narrow.
 
 Every number below is in rating points, so the conversion to ranks and the range of the planted
 world both have to be stated before any of them mean anything. `describe_scale()` prints this
-block at the top of every run, and the figure caption repeats it:
+block at the top of every run, and the figure's footer and dotted reference lines repeat the parts
+that matter:
 
 |                          |                                                                                                    |
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -66,7 +67,7 @@ subsection shows is an honest rank at 1d and an optimistic one lower down.
   | stronger player wins | 55.3% | 56.3% | 56.7% | 60.0% | **63.5%** | 67.5% | 77.4% |
   | Elo-400 points per rank | 37 | 44 | 47 | 71 | **96** | 127 | 214 |
 
-  **So "±100 points ≈ one rank" is measured to be almost exactly right at 1d — and about 2.5×
+  **So "±100 points ≈ one rank" is measured to be almost exactly right at 1d — and about 2.3×
   too generous at 10k**, which is where the tree's first tiers sit. A rank is roughly 5× wider in
   rating points at 6d than in the middle of the kyu range, because Go's ranks are a *handicap*
   ladder: one rank means "one stone makes it fair", a fixed amount of compensation rather than a
@@ -189,20 +190,20 @@ a joint Rasch MAP fit. Both files seed the world and the log the same way, so th
 below are the *same runs* as the section-3 table, digit for digit, and the two sections are
 directly comparable. 300 puzzles, 3,000 players, 10 reps:
 
-| attempts | regime | estimator | RMSE(off)             | RMSE(aff) | slope | ρ   | paired batch − online |
+| attempts | regime | estimator | RMSE(off)             | RMSE(aff) | slope | ρ     | paired batch − online |
 | -------- | ------ | --------- | --------------------- | --------- | ----- | ---- | --------------------- |
-| 10       | random | online    | 249.5 ± 4.8 | 215       | 1.46  | 0.89 |                       |
-| 10       | random | batch     | 237.8 ± 5.1 | 211       | 1.37  | 0.89 | −11.8 ± 1.6  |
-| 10       | gated  | online    | 408.2 ± 5.1 | 406       | 1.26  | 0.44 |                       |
-| 10       | gated  | batch     | **388.1 ± 5.3** | 383 | 1.34  | 0.53 | −20.1 ± 3.2  |
-| 40       | random | online    | 166.8 ± 4.1 | 118       | 1.37  | 0.97 |                       |
-| 40       | random | batch     | 133.9 ± 4.4 | 108       | 1.22  | 0.98 | −32.9 ± 2.7  |
-| 40       | gated  | online    | 355.2 ± 6.1 | 277       | 2.64  | 0.78 |                       |
-| 40       | gated  | batch     | **251.5 ± 7.8** | 145 | 1.92  | 0.95 | −103.7 ± 2.6 |
-| 160      | random | online    | 106.5 ± 3.4 | 77        | 1.20  | 0.99 |                       |
-| 160      | random | batch     | 63.7 ± 3.1  | 52        | 1.09  | 0.99 | −42.8 ± 1.4  |
-| 160      | gated  | online    | 287.1 ± 7.4 | 147       | 2.36  | 0.94 |                       |
-| 160      | gated  | batch     | **111.5 ± 4.0** | 40  | 1.30  | 1.00 | −175.6 ± 6.3 |
+| 10       | random | online    | 249.5 ± 4.8 | 215       | 1.46  | 0.886 |                       |
+| 10       | random | batch     | 237.8 ± 5.1 | 211       | 1.37  | 0.891 | −11.8 ± 1.6  |
+| 10       | gated  | online    | 408.2 ± 5.1 | 406       | 1.26  | 0.437 |                       |
+| 10       | gated  | batch     | **388.1 ± 5.3** | 383 | 1.34  | 0.531 | −20.1 ± 3.2  |
+| 40       | random | online    | 166.8 ± 4.1 | 118       | 1.37  | 0.971 |                       |
+| 40       | random | batch     | 133.9 ± 4.4 | 108       | 1.22  | 0.976 | −32.9 ± 2.7  |
+| 40       | gated  | online    | 355.2 ± 6.1 | 277       | 2.64  | 0.781 |                       |
+| 40       | gated  | batch     | **251.5 ± 7.8** | 145 | 1.92  | 0.948 | −103.7 ± 2.6 |
+| 160      | random | online    | 106.5 ± 3.4 | 77        | 1.20  | 0.986 |                       |
+| 160      | random | batch     | 63.7 ± 3.1  | 52        | 1.09  | 0.994 | −42.8 ± 1.4  |
+| 160      | gated  | online    | 287.1 ± 7.4 | 147       | 2.36  | 0.945 |                       |
+| 160      | gated  | batch     | **111.5 ± 4.0** | 40  | 1.30  | 0.996 | −175.6 ± 6.3 |
 
 The dashed curves in `out/recovery.png` are this table's `batch` rows across the whole sweep:
 `recovery.py` calls the same `fit` on the same log, so the figure and this table cannot drift.
@@ -256,19 +257,21 @@ the default dose is now 25%, the one the chart draws and the one the recommendat
 
 Next to choosing the right estimator this is second-order — the joint refit is free and buys more
 — but it is the fix that also helps the *live* path, which cannot be batch-fitted. Go Magic
-already owns the ungated instrument: **Go Diagnostics** (`/go-tests/`, in beta) is not gated by
-the tree, and already promises *"an estimated puzzle rank with a confidence range"*, which is
+may already own the ungated instrument: **Go Diagnostics** (`/go-tests/`, in beta) sits outside the
+tree — ungated in its *All Levels* setting, though its default is a chosen target level — and promises *"an estimated puzzle rank with a confidence range"*, which is
 Glicko RD by another name.
 
 ## 6. What their lives mechanic means for this
 
-Go Magic gives **one or two lives per puzzle**, deliberately, to push players to read the position
-out before touching it. You may retry after failing, but you earn no coins or XP.
+Go Magic gives **one or two lives per puzzle** (a mechanic on no public page found; see Sourcing),
+deliberately, to push players to read the position out before touching it. You may retry after
+failing, but the snapshot's coin rule pays only for a first-try solve.
 
 Three consequences:
 
-- **First-attempt resolution almost certainly exists in their data.** A lives counter has to be
-  tracked per user per puzzle to work at all, which is the exact field this needs. The blocking
+- **First-attempt resolution almost certainly exists in their data.** The coin rule pays on the
+  first try, so the system already knows which try is the first; a lives counter, if there is one,
+  needs the same field. The blocking
   dependency is therefore much smaller than it looked.
 - **Post-failure retries must be excluded**, and now there is a principled reason rather than a
   borrowed convention: those attempts are unrewarded *and* taken after seeing the answer, so they
@@ -302,7 +305,7 @@ median 22, the hardest 3.
 
 Three things follow, and the third is the one that changes a recommendation:
 
-- **Uneven traffic is a first-class cost, not a detail.** 40–50 RMSE points at matched total
+- **Uneven traffic is a first-class cost, not a detail.** 30–50 RMSE points at matched total
   volume, comparable to a 25% linking-item budget. Sections 3–5 are therefore optimistic about a
   real catalogue, in a direction that was previously unquantified.
 - **It hurts ungated pairing too** (+40 to +50), so it is not a gating effect. It is the plain
@@ -359,6 +362,10 @@ least what this table shows, and the conclusions above survive in the direction 
   behaviour. Real tree traffic follows the prerequisite graph and the drop-off between nodes;
   matching it needs their numbers, and the section reports a direction and a rough magnitude
   rather than a prediction.
+- **Part of the real log is ungated by rule.** The snapshot says Gold and Magic members can switch
+  the row-by-row progression off. The gated regime models the accounts that cannot, and the Gold
+  share is a private number; since ungated traffic only helps (section 5), the gated curves are an
+  upper bound on the mixed log's error rather than a prediction of it.
 - **Confidence intervals cover the simulation, not the modelling.** Every figure is a mean over 10
   planted worlds, the primary error figures carry a 95% t interval, and the regime contrasts are
   paired, so sampling noise is quantified. That says nothing about whether the *model* is right —
@@ -367,10 +374,20 @@ least what this table shows, and the conclusions above survive in the direction 
 ## Sourcing
 
 The committed snapshot `data/skilltree-2026-08-16.html` backs the section-1 inventory, the
-**10,160 puzzles** figure, and the 5-puzzles-per-quiz multiplier (*"a quiz — a short series of 5
-puzzles"*). It does **not** contain the word "difficulty", so the 11-level table, the lives
-mechanic in section 6, and the Go Diagnostics quote in section 5 come from other pages of
-gomagic.org that are not snapshotted here and cannot be checked offline.
+**10,160 puzzles** figure, the 5-puzzles-per-quiz multiplier (*"a quiz — a short series of 5
+puzzles"*), the row-by-row unlock rule (*"To unlock a new row of skills, bring every skill in the
+previous row to at least level 1"*), the first-try coin rule (*"Solving a problem on the first try
+earns coins"*), and the fact that **Gold and Magic members can switch the row-by-row progression
+off** and practise any skill in any order — so part of the real log is ungated by rule, in a share
+only the private log can give. It does **not** contain the word "difficulty".
+
+Checked against the live site on 2026-09-01, without snapshotting the pages: the 11-level table is
+public at `gomagic.org/ranking-system/`, and the Go Diagnostics quote in section 5 is verbatim at
+`gomagic.org/go-tests/` — which also lets the player choose a target level, so "ungated" there
+means its *All Levels* option rather than its default. The **lives mechanic in section 6 appears on
+no public page found** and stays flagged as unverified; the first-attempt rule rests on the coin
+rule above instead. The live puzzle counter had moved on to 10,187 while the tree inventory parsed
+identically (74 nodes, 35 rows, 4,790 slots).
 
 The Lichess constants in `glicko2.py` (`MIN_DEVIATION` 45, `MAX_DEVIATION` 500, `MAX_VOLATILITY`
 0.1, `MAX_RATING_DELTA` 700, `TAU` 0.75) **have been checked against the source** and all six are

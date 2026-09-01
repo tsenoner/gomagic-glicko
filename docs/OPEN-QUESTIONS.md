@@ -38,14 +38,13 @@ hard-fails if the layout spills onto a second page. CI builds it (`--html-only`,
 needs a browser). What remains is judgement, not code: whether the recommendation is the right one
 to lead with.
 
-The rank-scale caveat is now **on the page**: the scale line reads "EGF's convention, measured:
-accurate at 1d, generous below". That is as much as fits — the page has about four words of slack,
-and carrying the caveat at all meant compressing the `467` clause to pay for it. The concrete
-figures (96 points per rank at 1d, ~40 at 10k) spill onto a second page and stay in
-[`RESEARCH.md`](RESEARCH.md) §1. Note the qualifier softens the headline: "about one
-rank from ~160 attempts" is a dan-calibrated reading, and in the 30k–1k range Go Magic serves the
-same error is nearer 2.5 ranks. Flagging the direction was judged better than restating every
-table on a curve that is not trustworthy below 12 kyu.
+The rank-scale caveat is now **on the page**, with its direction and size: the scale line reads
+"EGF convention; measured, a rank is 96 points at 1d and 44 at 10k", and the chart's one-rank line is
+labelled "(at 1d)". The full curve (96 points per rank at 1d, ~40 at 10k) stays in
+[`RESEARCH.md`](RESEARCH.md) §1. Note the qualifier softens the headline: "about one rank from
+~160 attempts" is a dan-calibrated reading, and in the 30k–1k range Go Magic serves the same error
+is nearer 2.5 ranks. Flagging the direction and size was judged better than restating every table
+on a curve that is not trustworthy below 12 kyu.
 
 ---
 
@@ -59,7 +58,7 @@ table on a curve that is not trustworthy below 12 kyu.
       top of every run.
 - [x] **Confidence intervals.** Every table is now 10 repeats with a 95% t interval, and every
       regime contrast is *paired* on the same planted worlds. All contrasts are significant.
-- [x] **Uneven traffic.** `--funnel` models a prerequisite tree's drop-off. It costs 40–50 RMSE
+- [x] **Uneven traffic.** `--funnel` models a prerequisite tree's drop-off. It costs 30–50 RMSE
       points at matched total volume and damages the ordering under gating (ρ 0.94 → 0.78). See
       [`FINDINGS.md`](FINDINGS.md) section 7.
 - [x] **The extended-sweep trap.** Running past 160 attempts appears to show gating stops
@@ -76,7 +75,7 @@ table on a curve that is not trustworthy below 12 kyu.
 - [ ] **Decide whether to restate the tables on the measured rank curve.** `RESEARCH.md` §1 is
       no longer a survey of competing conventions — it is a measurement against 675,451 EGD games,
       and it settles the size of the effect: one rank is worth ~40 rating points through the kyu
-      range and 96 at 1d, so "±100 ≈ one rank" is right at dan level and ~2.5× too generous at 10k.
+      range and 96 at 1d, so "±100 ≈ one rank" is right at dan level and ~2.3× too generous at 10k.
       `FINDINGS.md` now carries that curve. What is *not* decided: whether the planted
       population and every published table should be **restated** on it, and what the 2.36×
       compression figure becomes in those units. This is the open scale question, and it changes
