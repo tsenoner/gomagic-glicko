@@ -49,7 +49,7 @@ the exact mechanic this repo models).
    real lifetime drift, mostly downward. Tsumego Hero's clamps and EGF's bonus term are two
    independent, converged answers to the same deflation problem. A hand-assigned seed *as a prior*
    plus bounds is the pattern both mature systems arrived at — which is exactly the
-   "use the 11-level labels as the item prior" item in [`TODO.md`](../TODO.md).
+   "use the 11-level labels as the item prior" item in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 3. **Doing it under a gated skill tree**, where the sample is censored by progression *and* by a
    lives mechanic. Nobody has published on this.
 4. **A 3×5 concept grid.** No site does per-cell difficulty estimation; all use one flat genre list.

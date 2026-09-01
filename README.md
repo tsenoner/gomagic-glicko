@@ -36,7 +36,7 @@ that comes *before* that one. Nothing here uses private data; only the skill tre
 - [`docs/RESEARCH.md`](docs/RESEARCH.md) — the literature behind the open design questions.
 - [`docs/PROBLEM-SOURCES.md`](docs/PROBLEM-SOURCES.md) — who already rates Go puzzles by attempts, and the licence audit.
 - [`docs/RUNNING.md`](docs/RUNNING.md) — every command, the flags worth knowing, the repo layout.
-- [`TODO.md`](TODO.md) — what is done, what is open, and the one-pager it builds to.
+- [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md) — what is done, what is open, and the one-pager it builds to.
 
 ## Run it
 
