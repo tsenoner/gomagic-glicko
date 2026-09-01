@@ -390,8 +390,10 @@ def main() -> None:
     ap.add_argument("--quick", action="store_true", help="one rep, fewer sample sizes")
     ap.add_argument("--band", type=float, default=300.0,
                     help="gating width: a player only meets puzzles within this many points")
-    ap.add_argument("--linking", type=float, nargs="+", default=[0.10],
-                    help="ungated fractions to sweep alongside the pure regimes")
+    ap.add_argument("--linking", type=float, nargs="+", default=[0.25],
+                    help="ungated fractions to sweep alongside the pure regimes. The default is "
+                         "the dose the write-ups recommend; pass 0.1 for the small-dose contrast "
+                         "quoted in FINDINGS.md §5")
     ap.add_argument("--funnel", type=float, default=1.0,
                     help="traffic on the hardest puzzle as a fraction of the easiest. 1.0 (the "
                          "default) is flat; 0.02 models a prerequisite tree's drop-off. Below "
@@ -528,7 +530,7 @@ def main() -> None:
 
 def _legend(regime: str) -> str:
     """Curves carry the ungated/gated vocabulary the write-ups use; the printed tables keep the
-    internal regime names, so `banded+10% link` reads as `gated + 10% ungated` on the figure."""
+    internal regime names, so `banded+25% link` reads as `gated + 25% ungated` on the figure."""
     return regime.replace("banded+", "gated + ").replace(" link", " ungated")
 
 

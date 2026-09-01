@@ -98,7 +98,7 @@ generous below); assigning every puzzle the same difficulty scores 467.</p>
     <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle">
     <figcaption><strong>Two exposure patterns, two estimators.</strong> Colour is the data:
     ungated random pairing against skill-tree gating as implied by Go Magic's public tree, green
-    adding 10% ungated traffic. Line style is the estimator: solid online, dashed the same log
+    adding 25% ungated traffic. Line style is the estimator: solid online, dashed the same log
     refit jointly. Dotted line is one-rank accuracy; bands are 95% intervals over ten
     worlds.</figcaption>
     <p class="repro"><strong>Reproduce.</strong>

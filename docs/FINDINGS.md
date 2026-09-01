@@ -251,7 +251,8 @@ exactly (166.8 / 1.37 / 0.97), the consistency check that the gating knob does w
 At 10 reps even the **10% dose is significant at every volume** — −14.7 ± 7.0 at 10 attempts per
 puzzle, −20.8 ± 5.2 at 40, −28.1 ± 5.7 at 160 — and the benefit grows with volume, because linking
 items carry weak information per attempt that needs traffic to accumulate. An earlier 2-rep reading
-put the low-volume effect inside the noise; it is not.
+put the low-volume effect inside the noise; it is not. Those three figures need `--linking 0.1`:
+the default dose is now 25%, the one the chart draws and the one the recommendation quotes.
 
 Next to choosing the right estimator this is second-order — the joint refit is free and buys more
 — but it is the fix that also helps the *live* path, which cannot be batch-fitted. Go Magic

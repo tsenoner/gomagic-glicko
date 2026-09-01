@@ -1892,7 +1892,7 @@ with it or the regime stops being gated.
 
 `./src/recovery.py --puzzles 300 --reps 10` writes `out/recovery.png`: five RMSE(off) curves
 against log attempts, with the 100-point one-rank line marked and a shaded 95% band per curve.
-Colour is the data (ungated, gated, gated with 10% ungated traffic) and line style the estimator,
+Colour is the data (ungated, gated, gated with 25% ungated traffic) and line style the estimator,
 solid for online Glicko-2 and dashed for the joint refit of the identical log, so the figure holds
 both the section-3 and the section-4 contrasts at once. `--no-joint` drops the dashed pair and the
 ~30 seconds they cost. It
