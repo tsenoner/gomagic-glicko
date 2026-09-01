@@ -90,6 +90,15 @@ on a curve that is not trustworthy below 12 kyu.
       tested; the sweep runs undamped, so the gated regime is modelled slightly optimistically.
       Lichess's version is asymmetric (hinted win 0.2, hinted loss 0.7) and `_lerp` takes one
       symmetric weight. Worth a run with damping on before quoting the gated numbers as a floor.
+- [ ] **The page's first recommendation assumes one skill per player per time window, and the
+      joint fit does not implement it.** `batch_fit.fit` has one `theta` per player and no time
+      term, so over a long history an improving player's early failures are charged to the puzzles
+      they touched. The simulation cannot see this: planted players never change. The small
+      experiment: a `--drift` knob in `make_log` that lets skills move between attempts, and a
+      per-window `theta` in `fit` with difficulties shared across windows; report how far drift
+      moves the joint-fit curve and how much the windowing buys back. Until then the recommendation
+      rests on the online estimator's known tolerance of drift and on the one-month window the
+      next step proposes.
 - [ ] **RD is not a safe readiness gate on gated data** (`METHOD.md` section 7): it reports
       ~77 points of uncertainty while making ~287 points of error. The obvious product move —
       "ship the label when RD drops below X" — is therefore unsafe as stated, and the repo should

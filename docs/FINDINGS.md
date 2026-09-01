@@ -36,8 +36,8 @@ fitted scale is already right, 2.6 means the fitted spread is 2.6× too narrow.
 
 Every number below is in rating points, so the conversion to ranks and the range of the planted
 world both have to be stated before any of them mean anything. `describe_scale()` prints this
-block at the top of every run, and the figure's footer and dotted reference lines repeat the parts
-that matter:
+block at the top of every run, and the figure's two dotted reference lines repeat the parts that
+matter:
 
 |                          |                                                                                                    |
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -181,7 +181,8 @@ The apparent convergence tracks the fallback rate exactly. With gating intact th
 conclusion above. (Compare within rows only: more players means fewer attempts each, so absolute
 values shift. And these four rows are the one exception to the 10-worlds-with-intervals rule
 stated at the top: they are a 2–3-rep directional check, deliberately not promoted into the
-headline tables.) `--sweep` exists so this is checkable, and its `--help` carries the warning.
+headline tables.) `--sweep` exists so this is checkable — the four rows above are the `--players 30000` line in
+[`RUNNING.md`](RUNNING.md), 18 seconds at 2 reps — and its `--help` carries the warning.
 
 ## 4. Most of that is the online estimator, not the data
 
@@ -381,13 +382,15 @@ earns coins"*), and the fact that **Gold and Magic members can switch the row-by
 off** and practise any skill in any order — so part of the real log is ungated by rule, in a share
 only the private log can give. It does **not** contain the word "difficulty".
 
-Checked against the live site on 2026-09-01, without snapshotting the pages: the 11-level table is
-public at `gomagic.org/ranking-system/`, and the Go Diagnostics quote in section 5 is verbatim at
-`gomagic.org/go-tests/` — which also lets the player choose a target level, so "ungated" there
-means its *All Levels* option rather than its default. The **lives mechanic in section 6 appears on
-no public page found** and stays flagged as unverified; the first-attempt rule rests on the coin
-rule above instead. The live puzzle counter had moved on to 10,187 while the tree inventory parsed
-identically (74 nodes, 35 rows, 4,790 slots).
+Two further reduced snapshots, taken 2026-09-01, back the rest. `data/ranking-system-2026-09-01.html`
+carries the 11-level table — levels 0 to 150, *Newcomer* (30–24 kyu) to *Celestial* (5 dan+), each
+tier mapped to a Skill Tree difficulty of 1–4. `data/go-tests-2026-09-01.html` carries the Go
+Diagnostics quote in section 5 verbatim, next to a *Select Target Level* control whose default is a
+chosen level (16 kyu at capture) with *All Levels* as an option, so "ungated" there means that
+option rather than the default. The **lives mechanic in section 6 appears on no public page found**
+and stays flagged as unverified; the first-attempt rule rests on the coin rule above instead. On the
+same day the live puzzle counter read 10,187 while the tree inventory parsed identically (74 nodes,
+35 rows, 4,790 slots).
 
 The Lichess constants in `glicko2.py` (`MIN_DEVIATION` 45, `MAX_DEVIATION` 500, `MAX_VOLATILITY`
 0.1, `MAX_RATING_DELTA` 700, `TAU` 0.75) **have been checked against the source** and all six are

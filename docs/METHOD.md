@@ -140,9 +140,9 @@ repeatedly:
 | "5 puzzles per quiz" | **backed** — *"a quiz — a short series of 5 puzzles"* |
 | the row-by-row unlock rule, and that Gold and Magic members can switch it off | **backed** — *"bring every skill in the previous row to at least level 1"*; *"Gold and Magic members can switch off the row-by-row progression and practice any skill … in any order"* |
 | "first try earns coins" (section 4's first-attempt rule) | **backed** — *"Solving a problem on the first try earns coins"* |
-| the static 11-level difficulty table | **not in the snapshot** (it contains the word "difficulty" zero times); public at `gomagic.org/ranking-system/`, checked live 2026-09-01, not snapshotted |
+| the static 11-level difficulty table | **backed** by `data/ranking-system-2026-09-01.html`, a second reduced snapshot: eleven levels, *Newcomer* 30–24 kyu to *Celestial* 5 dan+, each tier mapped to a Skill Tree difficulty of 1–4 (the tree snapshot itself contains the word "difficulty" zero times) |
 | the lives mechanic (section 4) | **not backed** — on no public page found as of 2026-09-01; treat as unverified |
-| the Go Diagnostics "confidence range" quote (section 7) | **not in the snapshot**; verbatim at `gomagic.org/go-tests/`, checked live 2026-09-01, not snapshotted. That page also offers a chosen target level, so "ungated" means its *All Levels* option |
+| the Go Diagnostics "confidence range" quote (section 7) | **backed** by `data/go-tests-2026-09-01.html`, a third reduced snapshot, verbatim. The same page offers a *Select Target Level* control (default a chosen level, *All Levels* an option), so "ungated" means that option |
 | the Lichess constants in `glicko2.py`[^lila-glicko][^scalachess-tau] | **verified against source**, with the citations and three corrections in section 4 |
 
 ### Map
@@ -1692,9 +1692,9 @@ accuracy and nothing so far has checked the claim against the accuracy. Comparin
 | 160 | ungated | 92.4 | 106.5 ± 3.4 | 1.15× | 1.20 |
 | 160 | gated | 77.4 | 287.1 ± 7.4 | **3.71×** | 2.36 |
 
-Reported RD is the mean of `r.rd` over puzzles with at least one attempt — the one quantity in this
-section the committed scripts do not print, read off the fitted `Rating`s after re-running the same
-seeded sweep. It is also the steadiest quantity in this document: its own interval is under ±0.5
+Reported RD is the mean of `r.rd` over puzzles with at least one attempt, printed as the `RD`
+column of `./src/recovery.py --puzzles 300 --reps 10` (the joint rows print a dash: a Rasch fit
+has no RD). It is also the steadiest quantity in this document: its own interval is under ±0.5
 points in every row, so the ratio column is carried almost entirely by the error term. Re-running
 this at ten repeats moved every ratio by 2–3% and left the shape untouched — the earlier two-repeat
 version read 1.55 / 2.61 / 1.61 / 3.81 / 1.13 / 3.61 against 1.57 / 2.64 / 1.64 / 3.88 / 1.15 /
@@ -1711,7 +1711,11 @@ attempts RD reports **77 points** — *tighter* than the ungated case — while 
 accurate. The mechanism is the same restriction of range: the estimator sees many mutually
 consistent comparisons against nearby opponents, and mistakes local agreement for global precision.
 Nothing in Glicko-2 can detect that the comparisons were selected, so it reports the precision it
-would have earned had they been representative.
+would have earned had they been representative. This is the approximation Coulom names when
+motivating Whole-History Rating — representing each rating *"with just one value and one variance
+for every player, ignoring covariance"*[^whr] — and gating is where it costs most: the neglected
+covariance is exactly the error a whole neighbourhood of ratings shares, the common shift that shows
+up above as scale compression, and no per-rating variance can carry it.
 
 The consequence for the section-2 recommendation is direct: **on gated data, an RD threshold is not
 a safe readiness gate.** It would pass labels that are three ranks off while reporting sub-rank
@@ -1758,7 +1762,8 @@ regularisation.
 ### Linking items
 
 A **linking item** — also a common item, or an *anchor* item when its difficulty is already
-established — is an item served to everybody across the whole ability range. Its job is not to be a
+established — is an item served to everybody across the whole ability range; in the equating
+literature this is the common-item nonequivalent groups design[^kolen-brennan]. Its job is not to be a
 good question; its job is to be a shared measurement point, so that a 25-kyu player and a 3-dan
 player who both attempted it pin their otherwise-disconnected regions of the scale to a common
 reference. On the staircase, it is being allowed one measurement from the ground floor to a step
@@ -2100,8 +2105,8 @@ look; the paired contrasts that the conclusions rest on are printed to the termi
 ### Further reading, not cited above
 
 - Glickman's earlier Glicko paper, for where rating deviation comes from and why.
-- Any introduction to item response theory, for the Rasch model, test equating, and common-item
-  linking designs — the vocabulary sections 6 and 7 borrow.
+- Any introduction to item response theory, for the Rasch model; Kolen and Brennan[^kolen-brennan]
+  for equating and the common-item linking designs section 7 borrows its vocabulary from.
 
 ---
 
@@ -2152,9 +2157,19 @@ them.
     `DEFAULT_RATING = 1500.0` L11. Pinned at `f7ce13e`, read 2026-08-17.
     <https://github.com/lichess-org/scalachess/blob/f7ce13e5f0623692441cbd6ad8f3f6684cc7dab2/rating/src/main/scala/glicko/impl/RatingCalculator.scala#L10-L11>
 
+[^whr]: **Rémi Coulom**, *Whole-History Rating: A Bayesian Rating System for Players of
+    Time-Varying Strength*, Computers and Games 2008, LNCS 5131, pp. 113–124. The quoted sentence
+    is from its survey of incremental algorithms (*Accurate Bayesian Inference*), read 2026-09-01.
+    <https://www.remi-coulom.fr/WHR/WHR.pdf>
+
+[^kolen-brennan]: **Michael J. Kolen and Robert L. Brennan**, *Test Equating, Scaling, and Linking:
+    Methods and Practices*, 3rd ed., Springer, 2014 — the standard reference for the common-item
+    nonequivalent groups design that section 7's linking items instantiate.
+
 [^katago]: **KataGo** — C++ neural-net Go engine, GTP plus its own analysis protocol. Cited only
     to record that it shares no code or lineage with `lila`.
     <https://github.com/lightvector/KataGo>
 
 [^katrain]: **KaTrain** — Python/Kivy desktop GUI over KataGo's analysis engine. Same note.
     <https://github.com/sanderland/katrain>
+

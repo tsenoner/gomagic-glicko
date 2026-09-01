@@ -13,6 +13,15 @@ anonymous-session CSRF tokens that src/parse_tree.py never reads). Page structur
 attribute the parser uses, and all page text are verbatim; `./src/parse_tree.py --html` on the
 reduced file produces output identical to the unreduced capture.
 
+data/ranking-system-2026-09-01.html, data/go-tests-2026-09-01.html
+------------------------------------------------------------------
+Two further reduced snapshots of public gomagic.org pages, captured 2026-09-01, included so that
+the 11-level ranking table and the Go Diagnostics description cited in docs/FINDINGS.md and
+docs/METHOD.md can be checked offline. Reduced the same way as the page above: <script>, <style>,
+<link>, <svg>, <img> and <noscript> nodes removed, HTML comments dropped, any nonce attributes
+redacted; page structure and all page text are verbatim. Not covered by the MIT licence in
+LICENSE; the property of their owners.
+
 Constants reimplemented from Lichess
 ------------------------------------
 The five production clamps in src/glicko2.py, the puzzle-as-competitor framing, and the

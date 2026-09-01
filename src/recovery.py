@@ -448,9 +448,12 @@ def main() -> None:
     print("  outcome model: logistic on true skill minus true difficulty, 400-point scale")
     print("  RMSE(off) keeps the fitted scale; RMSE(aff) removes it. slope 1.0 == scales agree.")
     print("  ± is the half-width of a 95% t interval over reps.\n")
+    print("  RD is the mean rating deviation the online estimator reports over the puzzles it "
+          "rated;\n  the joint fit has none. Compare it with RMSE(off): the gap is how "
+          "over-confident RD is.")
     print(f"  {'attempts':>8}  {'regime':<{width}}  {'RMSE(off)':>17}  {'RMSE(aff)':>9}  "
-          f"{'slope':>5}  {'±100':>5}  {'rho':>5}")
-    print(f"  {'-'*8}  {'-'*width}  {'-'*17}  {'-'*9}  {'-'*5}  {'-'*5}  {'-'*5}")
+          f"{'slope':>5}  {'±100':>5}  {'rho':>5}  {'RD':>5}")
+    print(f"  {'-'*8}  {'-'*width}  {'-'*17}  {'-'*9}  {'-'*5}  {'-'*5}  {'-'*5}  {'-'*5}")
 
     results: dict[str, list[tuple[int, float, float]]] = {nm: [] for nm in names}
     if joint_fit:
@@ -459,7 +462,7 @@ def main() -> None:
         per_regime: dict[str, list[float]] = {}
         flat_twin: dict[str, list[float]] = {}
         for regime, banded, linking in regimes:
-            scores, joint_scores = [], []
+            scores, joint_scores, rds = [], [], []
             for r in range(reps):
                 # `simulate` inlined, so the joint fit can be handed the same list of attempts the
                 # online estimator just consumed rather than an identically-seeded redraw.
@@ -467,6 +470,9 @@ def main() -> None:
                                band=args.band, linking=linking, funnel=args.funnel)
                 pz, _ = replay(log, args.players, args.puzzles)
                 scores.append(score(pz, worlds[r].puzzles))
+                # The estimator's own claim about its accuracy, over the puzzles it rated, for
+                # the RD-versus-realised-error comparison in docs/METHOD.md section 7.
+                rds.append(mean([z.rd for z in pz if z.games > 0]))
                 if joint_fit and regime in JOINTS:
                     _, beta = joint_fit(log, args.players, args.puzzles)
                     # Scored on the puzzles the log touches, which is the subset `score` keeps.
@@ -490,7 +496,7 @@ def main() -> None:
                   f"{mean([s.rmse_affine for s in scores]):>9.1f}  "
                   f"{mean([s.slope for s in scores]):>5.2f}  "
                   f"{mean([s.within_100 for s in scores]):>4.0%}  "
-                  f"{mean([s.rho for s in scores]):>5.3f}")
+                  f"{mean([s.rho for s in scores]):>5.3f}  {mean(rds):>5.1f}")
             results[regime].append((n, off, half))
 
             if joint_scores:
@@ -503,7 +509,7 @@ def main() -> None:
                       f"{mean([x.rmse_affine for x in joint_scores]):>9.1f}  "
                       f"{mean([x.slope for x in joint_scores]):>5.2f}  "
                       f"{mean([x.within_100 for x in joint_scores]):>4.0%}  "
-                      f"{mean([x.rho for x in joint_scores]):>5.3f}")
+                      f"{mean([x.rho for x in joint_scores]):>5.3f}  {'—':>5}")
                 results[joint_nm].append((n, j_off, j_half))
 
         # Paired contrasts. These, not the per-regime intervals above, are what the claims rest on:
@@ -548,10 +554,9 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     plt.rcParams["font.family"] = ["Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"]
     # Laid out by hand rather than by tight/constrained layout: the legend and the provenance
     # line sit below the axes, and the automatic engines either clip the title or run the two
-    # into each other. Fractions of the figure: title above 0.935, legend 0.03-0.12, footer
-    # under 0.03.
+    # into each other. Fractions of the figure: title above 0.935, legend 0.01-0.10.
     fig = plt.figure(figsize=(5.6, 4.3), dpi=220)
-    ax = fig.add_axes((0.115, 0.28, 0.865, 0.655))
+    ax = fig.add_axes((0.115, 0.255, 0.865, 0.68))
     red, blue, grey = "#b8321e", "#2563eb", "#64748b"   # the page's own red
     fixed = {"random": (blue, "o", "-", "ungated, online"),
              "random joint": (blue, "D", "--", "ungated, refit jointly"),
@@ -596,7 +601,7 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     ax.set_ylim(0, 500)
     ax.set_yticks(range(0, 501, 100))
     ax.set_xlabel("first attempts per puzzle", fontsize=11)
-    ax.set_ylabel("recovery error (RMSE, rating points)", fontsize=11)
+    ax.set_ylabel("RMSE, mean offset removed (rating points)", fontsize=10)
     ax.tick_params(labelsize=10)
     ax.set_title("How much data before a puzzle's difficulty is measured?", loc="left", fontsize=12)
     for level, text in ((100, "±100 points ≈ one Go rank (at 1d)"),
@@ -630,18 +635,10 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     order = [r for r in ("random", "random joint", "banded", "banded joint") if r in handles]
     order += [r for r in handles if r not in fixed]
     fig.legend([handles[r] for r in order], [handles[r].get_label() for r in order],
-               loc="lower center", bbox_to_anchor=(0.5, 0.03), frameon=False, fontsize=8.5,
+               loc="lower center", bbox_to_anchor=(0.5, 0.005), frameon=False, fontsize=8.5,
                ncol=3, columnspacing=1.0, handlelength=2.2)
-    # One line of provenance under the legend, for the PNG on its own; the page's caption
-    # carries the legible version.
-    fig.text(0.01, 0.006,
-             f"{n_puzzles} puzzles, {n_players:,} players, "
-             f"{reps} planted world{'s' if reps != 1 else ''}"
-             + (f", funnel {funnel:g}" if funnel < 1.0 else "")
-             + f"; planted truth ~ N({DEFAULT_RATING:.0f}, {TRUE_SD:.0f}) "
-             f"≈ {as_rank(DEFAULT_RATING - 3 * TRUE_SD)}–{as_rank(DEFAULT_RATING + 3 * TRUE_SD)} "
-             f"at ±3 sd.",
-             fontsize=8, color=grey, va="bottom")
+    # No provenance footer: on the page it printed at 5 pt and repeated the caption, and the
+    # standalone PNG is described by the run that wrote it and by docs/FINDINGS.md.
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out)
     print(f"  wrote {out}\n")

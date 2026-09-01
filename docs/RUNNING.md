@@ -13,6 +13,7 @@ included.
 ./src/batch_fit.py --puzzles 300 --reps 10               # §4  online vs joint fit, on the same log
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 --linking 0.25 0.5 1.0 --out /tmp/linking.png  # §5
 ./src/recovery.py --puzzles 300 --reps 10 --sweep 40 160 --funnel 0.02 --out /tmp/funnel.png       # §7
+./src/recovery.py --puzzles 300 --reps 2 --players 30000 --sweep 640 1280 --no-joint --out /tmp/deep.png  # §3  the ~2.8× check past 160, population scaled so the band holds
 ./src/egd_scale.py --selftest                            #     the rank-scale arithmetic, no network
 ./src/egd_scale.py                                       #     re-measure what one rank is worth, from EGD
 ```
@@ -77,11 +78,11 @@ src/parse_tree.py       public skill-tree parser
 src/build_collection.py fetches openly-licensed Go problems onto the 3x5 grid (content untracked)
 src/egd_scale.py        measures what one Go rank is worth, from EGD (responses untracked)
 tests/                  Glickman's worked example, the clamps, and the pinned tree inventory
-data/                   the public page snapshot, the problem-source audit, the taxonomy map
+data/                   three public-page snapshots, the problem-source audit, the taxonomy map
 docs/build.py           renders METHOD.md into out/method.html (a reading view)
 docs/onepager.py        renders the one-page summary into out/onepager.pdf
 docs/assets/            that page's stylesheet and script, as real files
-NOTICE                  third-party content: the page snapshot, and what is Lichess's
+NOTICE                  third-party content: the page snapshots, and what is Lichess's
 ```
 
 `recovery.py` owns the shared pieces — `make_log` builds the attempt log, `replay` fits it online,
