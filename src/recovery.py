@@ -555,7 +555,7 @@ def _plot(results: dict, out: Path, n_puzzles: int, n_players: int,
     # Laid out by hand rather than by tight/constrained layout: the legend and the provenance
     # line sit below the axes, and the automatic engines either clip the title or run the two
     # into each other. Fractions of the figure: title above 0.935, legend 0.01-0.10.
-    fig = plt.figure(figsize=(5.6, 4.3), dpi=220)
+    fig = plt.figure(figsize=(5.6, 4.05), dpi=220)
     ax = fig.add_axes((0.115, 0.255, 0.865, 0.68))
     red, blue, grey = "#b8321e", "#2563eb", "#64748b"   # the page's own red
     fixed = {"random": (blue, "o", "-", "ungated, online"),

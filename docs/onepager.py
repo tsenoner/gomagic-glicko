@@ -75,7 +75,7 @@ def build_html(chart: str, css: str, built: str) -> str:
 instead of assigning it by hand?</p>
 <div class="rule"></div>
 
-<p class="setup"><strong>What I did.</strong> Plant 300 puzzles and 3,000 players with known
+<p class="setup"><span class="label">1 &middot; What I did</span>Plant 300 puzzles and 3,000 players with known
 difficulties and skills. Simulate their first-attempt logs under three exposure patterns; the one
 modelling Go Magic is skill-tree gating, where a player meets only puzzles within 300 points of
 their own level. Fit the ungated and gated logs twice with the truth hidden: online, one attempt
@@ -85,6 +85,7 @@ rank</strong> (EGF convention; measured, a rank is 96 points at 1d and 44 at 10k
 every puzzle the same difficulty scores 467 points of error.</p>
 
 <div class="finding">
+  <span class="label">2 &middot; The finding</span>
   <p class="lead">About 160 first attempts measure a puzzle's difficulty to roughly one rank,
   but on skill-tree data only if the log is fitted <em>jointly</em>. Replaying the same log
   one attempt at a time, the standard online way, leaves almost three ranks of error:
@@ -96,22 +97,23 @@ every puzzle the same difficulty scores 467 points of error.</p>
 
 <div class="split">
   <figure>
+    <h2>3 &middot; The measurement</h2>
     <img src="{chart}" alt="Difficulty recovery error against first attempts per puzzle, for
     ungated and gated logs fitted online and jointly">
     <figcaption><strong>Three exposure patterns, two estimators.</strong> Colour is the data:
     ungated random pairing against skill-tree gating, a &plusmn;300-point band standing in for
-    Go Magic's row-by-row tree (which Gold and Magic members can switch off, so part of the real
-    log is ungated); green, fitted online only, adds 25% ungated traffic. Line style is the
-    estimator: solid online, dashed the same log refit jointly. Dotted lines: one-rank accuracy
-    and the 467 ceiling. Bands: 95% intervals over ten simulated worlds.</figcaption>
+    Go Magic's row-by-row tree (Gold and Magic members can switch it off, so part of the real log
+    is ungated); green, online only, adds 25% ungated traffic. Line style is the
+    estimator: solid online, dashed the same log refit jointly. Dotted: one-rank accuracy and the
+    467 ceiling. Bands: 95% intervals over ten simulated worlds.</figcaption>
     <p class="repro"><strong>Reproduce.</strong>
     <code>./src/recovery.py --puzzles 300 --reps 10</code> draws every curve here; the other
     numbers trace to <code>docs/RUNNING.md</code> and <code>METHOD.md</code> sections 1 and 7; the
-    estimator is checked against Glickman's worked example. Go Magic facts are from the committed
-    snapshot of its public skill-tree page (16 Aug 2026); nothing private.</p>
+    estimator is checked against Glickman's worked example. Go Magic facts: the committed snapshot
+    of its public skill-tree page (16 Aug 2026); nothing private.</p>
   </figure>
   <div>
-    <h2>Three results</h2>
+    <h2>4 &middot; Three results, read off the chart</h2>
     <div class="stack">
       <div>
         <h3>Gating itself costs accuracy</h3>
@@ -153,7 +155,7 @@ every puzzle the same difficulty scores 467 points of error.</p>
   </div>
 </div>
 
-<h2>What to do about it</h2>
+<h2>5 &middot; What to do about it</h2>
 <div class="cols">
   <div>
     <h3>Backfill jointly, serve online</h3>
@@ -176,16 +178,15 @@ every puzzle the same difficulty scores 467 points of error.</p>
 </div>
 
 <div class="caveat">
-  <strong>What this does not claim.</strong> Not that any hand label is wrong; that needs the
-  private attempt log, and none is used here. It answers the question before that one: measured
-  from attempts, how much data would a difficulty need to mean anything? Simulation can settle
-  that for the estimator and the data's shape; real attempts fit its one-trait logistic model
-  less well, so read the counts here as a floor.
+  <span class="label">6 &middot; What this does not claim</span>Not that any hand label is wrong;
+  that needs the private log, and none is used here. It answers the prior question: measured from
+  attempts, how much data would a difficulty need to mean anything? Simulation can settle that for
+  the estimator and the data's shape; real attempts fit its one-trait model less well, so read the
+  counts here as a floor.
 </div>
-<p class="next"><strong>The next step is small:</strong> fit one month of the real log both ways,
-first attempts only (the try the coin rule singles out). If the table holds, the online labels come
-out about half as wide as the joint ones, and attempts per puzzle place every label on the red curves
-above.</p>
+<p class="next"><span class="label">7 &middot; A small next step</span>Fit a month of the real log both
+ways, first attempts only (the try the coin rule marks). If the table holds, online labels come out
+about half as wide as joint ones, and attempts per puzzle place each label on the red curves above.</p>
 
 <footer>
   <span>Tobias Senoner &middot;
